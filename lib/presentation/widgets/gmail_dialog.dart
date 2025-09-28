@@ -11,20 +11,7 @@ class GmailDialog extends ConsumerStatefulWidget {
   ConsumerState<GmailDialog> createState() => _GmailDialogState();
 }
 
-class _GmailDialogState extends ConsumerState<GmailDialog> with TickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 4, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+class _GmailDialogState extends ConsumerState<GmailDialog> {
 
   @override
   Widget build(BuildContext context) {
@@ -58,29 +45,8 @@ class _GmailDialogState extends ConsumerState<GmailDialog> with TickerProviderSt
             ),
             const SizedBox(height: 20),
 
-            TabBar(
-              controller: _tabController,
-              labelColor: AppColors.primary,
-              unselectedLabelColor: AppColors.textSecondary,
-              indicatorColor: AppColors.primary,
-              tabs: const [
-                Tab(text: 'Inbox'),
-                Tab(text: 'Non lette'),
-                Tab(text: 'Importanti'),
-                Tab(text: 'Recenti'),
-              ],
-            ),
-
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildInboxTab(),
-                  _buildUnreadTab(),
-                  _buildImportantTab(),
-                  _buildRecentTab(),
-                ],
-              ),
+              child: _buildEmailList(),
             ),
 
           ],
@@ -89,20 +55,9 @@ class _GmailDialogState extends ConsumerState<GmailDialog> with TickerProviderSt
     );
   }
 
-  Widget _buildInboxTab() {
-    return _buildMessagesList(const GmailQuery(type: GmailQueryType.inbox));
-  }
-
-  Widget _buildUnreadTab() {
-    return _buildMessagesList(const GmailQuery(type: GmailQueryType.unread));
-  }
-
-  Widget _buildImportantTab() {
-    return _buildMessagesList(const GmailQuery(type: GmailQueryType.important));
-  }
-
-  Widget _buildRecentTab() {
-    return _buildMessagesList(const GmailQuery(type: GmailQueryType.recent, days: 7));
+  Widget _buildEmailList() {
+    // Show recent emails from inbox
+    return _buildMessagesList(const GmailQuery(type: GmailQueryType.inbox, maxResults: 50));
   }
 
   Widget _buildMessagesList(GmailQuery query) {
@@ -292,10 +247,8 @@ class _GmailDialogState extends ConsumerState<GmailDialog> with TickerProviderSt
   }
 
   void _useEmailInChat(GmailMessage message) {
-    final gmailService = ref.read(gmailServiceProvider);
-    final content = gmailService.formatEmailContent(message);
-
-    Navigator.of(context).pop(content);
+    // Return the Gmail message object so it can be added to smart preview
+    Navigator.of(context).pop(message);
   }
 
 
@@ -306,10 +259,6 @@ class _GmailDialogState extends ConsumerState<GmailDialog> with TickerProviderSt
       await gmailService.initialize();
 
       ref.invalidate(gmailMessagesProvider);
-
-      setState(() {
-        _tabController.index = 0;
-      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -4,10 +4,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/theme/colors.dart';
+import '../../domain/entities/gmail_message.dart';
 import '../../data/datasources/remote/supabase_service.dart';
 import '../../domain/entities/chat_session.dart';
 import '../../domain/entities/message.dart';
 import '../providers/chat_provider.dart';
+import '../providers/gmail_provider.dart';
 import '../../data/datasources/remote/google_drive_service.dart';
 import '../../data/datasources/remote/google_drive_content_extractor.dart';
 import '../providers/google_drive_provider.dart';
@@ -388,8 +390,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   Consumer(
                     builder: (context, ref, _) {
                       final selectedFiles = ref.watch(selectedDriveFilesProvider);
-                      
-                      if (selectedFiles.isEmpty && currentSession == null) {
+                      final selectedEmails = ref.watch(selectedGmailMessagesProvider);
+
+                      if (selectedFiles.isEmpty && selectedEmails.isEmpty && currentSession == null) {
                         return const Text(
                           'Nessun riferimento attivo',
                           style: TextStyle(
@@ -399,10 +402,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                           ),
                         );
                       }
-                      
+
                       return Column(
                         children: [
                           ...selectedFiles.map((file) => _buildDriveFileReference(file)),
+                          ...selectedEmails.map((email) => _buildGmailMessageReference(email)),
 
                           if (currentSession != null)
                             _buildReferenceItem(
@@ -550,6 +554,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
     Widget _buildSmartPreviewWindow() {
       final selectedFiles = ref.watch(selectedDriveFilesProvider);
+      final selectedEmails = ref.watch(selectedGmailMessagesProvider);
 
       return AnimatedContainer(
         duration: const Duration(milliseconds: 300),
@@ -583,16 +588,18 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     color: AppColors.iconPrimary,
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'Smart Preview - Documenti Condivisi',
-                    style: TextStyle(
+                  Text(
+                    selectedEmails.isNotEmpty
+                        ? 'Smart Preview - Documenti e Email Condivisi'
+                        : 'Smart Preview - Documenti Condivisi',
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: AppColors.textPrimary,
                     ),
                   ),
                   const Spacer(),
-                  if (selectedFiles.isNotEmpty) ...[
+                  if (selectedFiles.isNotEmpty || selectedEmails.isNotEmpty) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -600,7 +607,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${selectedFiles.length} file',
+                        '${selectedFiles.length + selectedEmails.length} elementi',
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
@@ -654,8 +661,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
 
             Expanded(
-              child: selectedFiles.isNotEmpty
-                  ? _buildPreviewArea(selectedFiles)
+              child: (selectedFiles.isNotEmpty || selectedEmails.isNotEmpty)
+                  ? _buildPreviewArea(selectedFiles, selectedEmails)
                   : const Center(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -671,7 +678,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Nessun documento condiviso',
+                                'Nessun documento o email condiviso',
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
@@ -680,7 +687,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                               ),
                               SizedBox(height: 4),
                               Text(
-                                'Aggiungi file da Google Drive per vederli qui',
+                                'Aggiungi file da Drive o email da Gmail',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: AppColors.textTertiary,
@@ -697,7 +704,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       );
     }
 
-    Widget _buildPreviewArea(List<DriveFile> selectedFiles) {
+    Widget _buildPreviewArea(List<DriveFile> selectedFiles, List<GmailMessage> selectedEmails) {
       if (_selectedFileForPreview != null &&
           !selectedFiles.any((file) => file.id == _selectedFileForPreview!.id)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -722,15 +729,29 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         });
       }
 
-      return Column(
-        children: [
-          _buildCompactFileSelector(selectedFiles, fileToPreview),
-          const Divider(height: 1, color: AppColors.divider),
-          Expanded(
-            child: _buildFilePreviewSimple(fileToPreview),
-          ),
-        ],
-      );
+      if (selectedFiles.isNotEmpty) {
+        return Column(
+          children: [
+            _buildCompactFileSelector(selectedFiles, fileToPreview),
+            const Divider(height: 1, color: AppColors.divider),
+            Expanded(
+              child: _buildFilePreviewSimple(fileToPreview),
+            ),
+          ],
+        );
+      } else if (selectedEmails.isNotEmpty) {
+        return Column(
+          children: [
+            _buildCompactEmailSelector(selectedEmails),
+            const Divider(height: 1, color: AppColors.divider),
+            Expanded(
+              child: _buildEmailPreview(selectedEmails.first),
+            ),
+          ],
+        );
+      }
+
+      return const SizedBox();
     }
 
     Widget _buildFilePreviewSimple(DriveFile file) {
@@ -1901,19 +1922,19 @@ Widget _buildGoogleConnectionSection() {
 
   void _showGmailDialog() async {
     try {
-      final selectedEmailContent = await showDialog<String>(
+      final selectedMessage = await showDialog<GmailMessage>(
         context: context,
         builder: (context) => const GmailDialog(),
       );
 
-      if (selectedEmailContent != null && selectedEmailContent.isNotEmpty) {
-        _messageController.text = selectedEmailContent;
-        _messageFocusNode.requestFocus();
+      if (selectedMessage != null) {
+        // Add email to smart preview
+        ref.read(selectedGmailMessagesProvider.notifier).addMessage(selectedMessage);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Email aggiunta al messaggio'),
+              content: Text('Email aggiunta a Smart Preview'),
               backgroundColor: AppColors.success,
             ),
           );
@@ -1995,6 +2016,316 @@ Widget _buildGoogleConnectionSection() {
           InkWell(
             onTap: () {
               ref.read(selectedDriveFilesProvider.notifier).removeFile(file.id);
+            },
+            child: const Icon(
+              Icons.close,
+              size: 14,
+              color: AppColors.iconSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompactEmailSelector(List<GmailMessage> emails) {
+    final currentEmail = emails.first;
+
+    return Container(
+      height: 60,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: AppColors.surface,
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.email,
+                size: 16,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  currentEmail.subject.isNotEmpty ? currentEmail.subject : '(Nessun oggetto)',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'Email da ${_extractEmailName(currentEmail.from)}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (emails.length > 1) ..[
+            Container(
+              height: 32,
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.outline),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: DropdownButton<GmailMessage>(
+                value: currentEmail,
+                items: emails.map((email) => DropdownMenuItem(
+                  value: email,
+                  child: SizedBox(
+                    width: 200,
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.email,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            email.subject.isNotEmpty ? email.subject : '(Nessun oggetto)',
+                            style: const TextStyle(fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )).toList(),
+                onChanged: (GmailMessage? newEmail) {
+                  // For now, just keep the first email selected
+                  // Could implement email switching in the future
+                },
+                underline: const SizedBox(),
+                icon: const Icon(Icons.expand_more, size: 18),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textPrimary,
+                ),
+                dropdownColor: Colors.white,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmailPreview(GmailMessage email) {
+    return Container(
+      color: Colors.white,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.email, size: 20, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          email.subject.isNotEmpty ? email.subject : '(Nessun oggetto)',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: const Text(
+                          'GMAIL',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () {
+                          ref.read(selectedGmailMessagesProvider.notifier).removeMessage(email.id);
+                        },
+                        child: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: AppColors.iconSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Da: ${_extractEmailName(email.from)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  Text(
+                    'Data: ${_formatEmailDate(email.date)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.outline),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Contenuto:',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SelectableText(
+                    email.bodyText.isNotEmpty ? email.bodyText : email.snippet,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textPrimary,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _extractEmailName(String email) {
+    final match = RegExp(r'^(.+?)\s*<(.+)>$').firstMatch(email);
+    if (match != null) {
+      return match.group(1)?.trim() ?? email;
+    }
+    return email.split('@').first;
+  }
+
+  String _formatEmailDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (difference.inDays == 1) {
+      return 'Ieri';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}g fa';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
+  }
+
+  Widget _buildGmailMessageReference(GmailMessage email) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.outline),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.email,
+            size: 16,
+            color: AppColors.warning,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  email.subject.isNotEmpty ? email.subject : '(Nessun oggetto)',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  'Da: ${_extractEmailName(email.from)}',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.warning,
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: const Text(
+              'GMAIL',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          InkWell(
+            onTap: () {
+              ref.read(selectedGmailMessagesProvider.notifier).removeMessage(email.id);
             },
             child: const Icon(
               Icons.close,

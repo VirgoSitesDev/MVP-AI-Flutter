@@ -6,6 +6,29 @@ final gmailServiceProvider = Provider<GmailService>((ref) {
   return GmailService();
 });
 
+// Provider for selected Gmail messages in smart preview
+final selectedGmailMessagesProvider = StateNotifierProvider<SelectedGmailMessagesNotifier, List<GmailMessage>>((ref) {
+  return SelectedGmailMessagesNotifier();
+});
+
+class SelectedGmailMessagesNotifier extends StateNotifier<List<GmailMessage>> {
+  SelectedGmailMessagesNotifier() : super([]);
+
+  void addMessage(GmailMessage message) {
+    if (!state.any((m) => m.id == message.id)) {
+      state = [...state, message];
+    }
+  }
+
+  void removeMessage(String messageId) {
+    state = state.where((m) => m.id != messageId).toList();
+  }
+
+  void clearAll() {
+    state = [];
+  }
+}
+
 final gmailMessagesProvider = FutureProvider.family<List<GmailMessage>, GmailQuery>((ref, query) async {
   final gmailService = ref.read(gmailServiceProvider);
 
