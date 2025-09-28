@@ -1,0 +1,67 @@
+name: ai_assistant_mvp
+description: "AI Integration Platform for Business - MVP"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+  flutter: '>=3.19.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management & Navigation
+  riverpod: ^2.4.9  # Versione compatibile
+  flutter_riverpod: ^2.4.9  # Versione compatibile
+  go_router: ^13.2.0
+  
+  # Backend Supabase
+  supabase_flutter: ^2.3.4
+  
+  # Network & APIs
+  dio: ^5.4.0
+  http: ^1.1.0
+  
+  # ===== GOOGLE APIS - VERSIONI COMPATIBILI CON DART 3.3.0 =====
+  google_sign_in: ^6.1.6  # Versione più vecchia
+  googleapis: ^13.1.0  # DOWNGRADE come suggerito dal messaggio di errore
+  googleapis_auth: ^1.4.1  # Versione compatibile
+  extension_google_sign_in_as_googleapis_auth: ^2.0.12
+  # ==============================================================
+  
+  # Local Storage
+  shared_preferences: ^2.2.2
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.2
+  
+  # Database - Desktop (opzionale per web)
+  sqflite_common_ffi: ^2.3.0
+  
+  # Security
+  flutter_secure_storage: ^9.0.0
+  
+  # Utils
+  uuid: ^4.2.1
+  intl: ^0.18.1  # Versione più vecchia
+  mime: ^1.0.6
+  
+  # UI - VERSIONI COMPATIBILI
+  flutter_svg: ^2.0.9  # Versione compatibile con Dart 3.3.0
+  
+  # Excel parsing
+  excel: ^4.0.2  # Versione più vecchia
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1  # Versione più vecchia
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/logo_virgo.png
+    - assets/images/logo_virgo_extended.png
+    - assets/icons/google_logo.svg

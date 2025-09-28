@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="AI Assistant MVP - AI Integration Platform">
+
+  <!-- Google Sign In Configuration -->
+  <meta name="google-signin-client_id" content="1015899649183-6qsdcijpdpskf2sn65ujfmhdt1j1eko1.apps.googleusercontent.com">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="AI Assistant MVP">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <!-- ICONE MATERIAL: Font necessario per le icone -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+  <!-- Google Sign In SDK -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- Suppress Google One Tap deprecation warnings but allow debug -->
+  <script>
+    // Override console methods to filter out Google GSI warnings
+    if (typeof console !== 'undefined') {
+      const originalWarn = console.warn;
+      const originalLog = console.log;
+
+      console.warn = function(...args) {
+        const message = args.join(' ');
+        // Allow debug messages through, suppress only GSI warnings
+        if (message.includes('GSI_LOGGER') ||
+            message.includes('Google One Tap') ||
+            message.includes('FedCM')) {
+          return; // Suppress these warnings
+        }
+        originalWarn.apply(console, args);
+      };
+
+      console.log = function(...args) {
+        const message = args.join(' ');
+        // Allow debug messages through, suppress only GSI warnings
+        if (message.includes('[GSI_LOGGER]') ||
+            message.includes('Google One Tap') ||
+            message.includes('FedCM')) {
+          return; // Suppress these logs
+        }
+        originalLog.apply(console, args);
+      };
+    }
+  </script>
+
+  <title>AI Assistant MVP</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
