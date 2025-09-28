@@ -109,42 +109,44 @@ class GmailService {
         format: 'full',
       );
 
-      // Debug: log the raw JSON structure
-      final jsonData = message.toJson();
-      print('🔍 RAW JSON keys: ${jsonData.keys.toList()}');
+      // The Gmail API Message object needs special handling
+      // We need to convert the payload properly
+      final jsonData = <String, dynamic>{
+        'id': message.id,
+        'threadId': message.threadId,
+        'labelIds': message.labelIds,
+        'snippet': message.snippet,
+        'historyId': message.historyId,
+        'internalDate': message.internalDate,
+        'sizeEstimate': message.sizeEstimate,
+        'raw': message.raw ?? '',
+      };
+
+      // Handle the payload separately as it's a MessagePart object
+      if (message.payload != null) {
+        jsonData['payload'] = _convertMessagePartToJson(message.payload!);
+      }
+
+      // Debug logging
+      print('🔍 Converted JSON keys: ${jsonData.keys.toList()}');
       if (jsonData.containsKey('payload')) {
-        try {
-          final payloadData = jsonData['payload'];
-          print('📦 Payload type: ${payloadData.runtimeType}');
-
-          // Convert payload to JSON if it's not already a Map
-          Map<String, dynamic>? payload;
-          if (payloadData is Map<String, dynamic>) {
-            payload = payloadData;
-          } else if (payloadData != null) {
-            // Try to convert to JSON
-            payload = (payloadData as dynamic).toJson() as Map<String, dynamic>?;
-          }
-
-          if (payload != null) {
-            print('📦 Payload keys: ${payload.keys.toList()}');
-            if (payload.containsKey('headers')) {
-              final headers = payload['headers'] as List?;
-              print('📋 Headers count in JSON: ${headers?.length ?? 0}');
-              if (headers != null && headers.isNotEmpty) {
-                print('📝 First few headers: ${headers.take(3).toList()}');
-              }
-            } else {
-              print('❌ No headers key in payload');
+        final payload = jsonData['payload'] as Map<String, dynamic>;
+        print('📦 Payload keys: ${payload.keys.toList()}');
+        if (payload.containsKey('headers')) {
+          final headers = payload['headers'] as List;
+          print('📋 Headers count: ${headers.length}');
+          if (headers.isNotEmpty) {
+            print('📝 First few headers: ${headers.take(3).toList()}');
+            // Look for subject header
+            final subjectHeader = headers.firstWhere(
+              (h) => (h['name'] as String).toLowerCase() == 'subject',
+              orElse: () => null,
+            );
+            if (subjectHeader != null) {
+              print('✅ Found subject header: ${subjectHeader['value']}');
             }
-          } else {
-            print('❌ Could not convert payload to Map');
           }
-        } catch (e) {
-          print('❌ Error accessing payload: $e');
         }
-      } else {
-        print('❌ No payload key in JSON');
       }
 
       final gmailMessage = GmailMessage.fromJson(jsonData);
@@ -353,6 +355,36 @@ class GmailService {
         throw Exception('Gmail Service non inizializzato - Verifica che l\'account Google sia autorizzato per Gmail');
       }
     }
+  }
+
+  Map<String, dynamic> _convertMessagePartToJson(gmail.MessagePart part) {
+    final json = <String, dynamic>{
+      'partId': part.partId ?? '',
+      'mimeType': part.mimeType ?? '',
+      'filename': part.filename ?? '',
+      'headers': [],
+      'body': {
+        'attachmentId': part.body?.attachmentId ?? '',
+        'size': part.body?.size ?? 0,
+        'data': part.body?.data ?? '',
+      },
+      'parts': [],
+    };
+
+    // Convert headers
+    if (part.headers != null && part.headers!.isNotEmpty) {
+      json['headers'] = part.headers!.map((h) => {
+        'name': h.name ?? '',
+        'value': h.value ?? '',
+      }).toList();
+    }
+
+    // Convert nested parts recursively
+    if (part.parts != null && part.parts!.isNotEmpty) {
+      json['parts'] = part.parts!.map((p) => _convertMessagePartToJson(p)).toList();
+    }
+
+    return json;
   }
 
   String formatEmailContent(GmailMessage message) {
