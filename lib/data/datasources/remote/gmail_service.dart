@@ -113,16 +113,35 @@ class GmailService {
       final jsonData = message.toJson();
       print('🔍 RAW JSON keys: ${jsonData.keys.toList()}');
       if (jsonData.containsKey('payload')) {
-        final payload = jsonData['payload'] as Map<String, dynamic>?;
-        print('📦 Payload keys: ${payload?.keys.toList() ?? 'null'}');
-        if (payload != null && payload.containsKey('headers')) {
-          final headers = payload['headers'] as List?;
-          print('📋 Headers count in JSON: ${headers?.length ?? 0}');
-          if (headers != null && headers.isNotEmpty) {
-            print('📝 First few headers: ${headers.take(3).toList()}');
+        try {
+          final payloadData = jsonData['payload'];
+          print('📦 Payload type: ${payloadData.runtimeType}');
+
+          // Convert payload to JSON if it's not already a Map
+          Map<String, dynamic>? payload;
+          if (payloadData is Map<String, dynamic>) {
+            payload = payloadData;
+          } else if (payloadData != null) {
+            // Try to convert to JSON
+            payload = (payloadData as dynamic).toJson() as Map<String, dynamic>?;
           }
-        } else {
-          print('❌ No headers key in payload');
+
+          if (payload != null) {
+            print('📦 Payload keys: ${payload.keys.toList()}');
+            if (payload.containsKey('headers')) {
+              final headers = payload['headers'] as List?;
+              print('📋 Headers count in JSON: ${headers?.length ?? 0}');
+              if (headers != null && headers.isNotEmpty) {
+                print('📝 First few headers: ${headers.take(3).toList()}');
+              }
+            } else {
+              print('❌ No headers key in payload');
+            }
+          } else {
+            print('❌ Could not convert payload to Map');
+          }
+        } catch (e) {
+          print('❌ Error accessing payload: $e');
         }
       } else {
         print('❌ No payload key in JSON');
