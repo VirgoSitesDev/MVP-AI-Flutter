@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/theme/colors.dart';
@@ -1247,27 +1248,37 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    focusNode: _messageFocusNode,
-                    enabled: messageState is! AppMessageStateSending,
-                    maxLines: 1,
-                    textInputAction: TextInputAction.send,
-                    decoration: const InputDecoration(
-                      hintText: 'Chiedimi qualsiasi cosa',
-                      border: InputBorder.none,
-                      hintStyle: TextStyle(
-                        color: AppColors.textTertiary,
+                  child: KeyboardListener(
+                    focusNode: FocusNode(),
+                    onKeyEvent: (KeyEvent event) {
+                      if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
+                        if (_messageController.text.trim().isNotEmpty) {
+                          _sendMessage();
+                        }
+                      }
+                    },
+                    child: TextField(
+                      controller: _messageController,
+                      focusNode: _messageFocusNode,
+                      enabled: messageState is! AppMessageStateSending,
+                      maxLines: 1,
+                      textInputAction: TextInputAction.send,
+                      decoration: const InputDecoration(
+                        hintText: 'Chiedimi qualsiasi cosa',
+                        border: InputBorder.none,
+                        hintStyle: TextStyle(
+                          color: AppColors.textTertiary,
+                          fontSize: 14,
+                        ),
+                      ),
+                      style: const TextStyle(
+                        color: Color.fromARGB(255, 80, 80, 80),
                         fontSize: 14,
                       ),
+                      onSubmitted: (text) {
+                        _sendMessage();
+                      },
                     ),
-                    style: const TextStyle(
-                      color: Color.fromARGB(255, 80, 80, 80),
-                      fontSize: 14,
-                    ),
-                    onSubmitted: (text) {
-                      _sendMessage();
-                    },
                   ),
                 ),
                 const SizedBox(width: 8),
