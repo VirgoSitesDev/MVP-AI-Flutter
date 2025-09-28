@@ -8,6 +8,7 @@ import '../../domain/entities/chat_session.dart';
 import '../../domain/entities/message.dart';
 import '../providers/chat_provider.dart';
 import '../../data/datasources/remote/google_drive_service.dart';
+import '../../data/datasources/remote/google_drive_content_extractor.dart';
 import '../providers/google_drive_provider.dart';
 import '../widgets/google_drive_dialog.dart';
 
@@ -28,7 +29,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   bool _isUtilitiesExpanded = false;
 
   DriveFile? _selectedFileForPreview;
-  
+  String? _previewContent;
+  bool _isLoadingPreview = false;
+  final GoogleDriveContentExtractor _contentExtractor = GoogleDriveContentExtractor();
+
   // Per la smart preview window
   List<String> selectedEmails = [];
   
@@ -613,6 +617,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     // Se nessun file è selezionato per preview, usa il primo della lista
                     final fileToPreview = _selectedFileForPreview ?? selectedFiles.first;
 
+                    // Se è la prima volta che mostriamo un file, carica il contenuto
+                    if (_selectedFileForPreview == null && _previewContent == null && !_isLoadingPreview) {
+                      _selectedFileForPreview = fileToPreview;
+                      _loadFileContent(fileToPreview);
+                    }
+
                     return Column(
                       children: [
                         // File selector compatto in alto
@@ -671,80 +681,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     // Aggiungi questi metodi helper:
-
-
-    Widget _buildFilePreviewCard(DriveFile file) {
-      return Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        child: Material(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          elevation: 1,
-          child: InkWell(
-            onTap: () {
-              setState(() {
-                _selectedFileForPreview = file;
-              });
-            },
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  // Icona file
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Center(
-                      child: Text(
-                        file.fileTypeIcon,
-                        style: const TextStyle(fontSize: 18),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Info file
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          file.name,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          file.fileTypeDescription,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.arrow_forward_ios,
-                    size: 12,
-                    color: AppColors.iconSecondary,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
 
     Widget _buildCompactFileSelector(List<DriveFile> files, DriveFile currentFile) {
       return Container(
@@ -832,6 +768,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                       setState(() {
                         _selectedFileForPreview = newFile;
                       });
+                      _loadFileContent(newFile);
                     }
                   },
                   underline: const SizedBox(),
@@ -849,308 +786,133 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       );
     }
 
-    Widget _buildCompactFileList(List<DriveFile> files) {
+
+    Widget _buildFilePreview(DriveFile file) {
+      // Se il file è cambiato, carica il nuovo contenuto
+      if (_selectedFileForPreview?.id != file.id) {
+        _selectedFileForPreview = file;
+        _loadFileContent(file);
+      }
+
+      return Container(
+        color: Colors.white,
+        child: _isLoadingPreview
+            ? const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text(
+                      'Caricamento anteprima...',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : _previewContent != null
+                ? SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: SelectableText(
+                      _previewContent!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textPrimary,
+                        fontFamily: 'monospace',
+                        height: 1.5,
+                      ),
+                    ),
+                  )
+                : _buildPreviewContent(file),
+      );
+    }
+
+    Future<void> _loadFileContent(DriveFile file) async {
+      if (mounted) {
+        setState(() {
+          _isLoadingPreview = true;
+          _previewContent = null;
+        });
+      }
+
+      try {
+        final content = await _contentExtractor.extractContent(file);
+        if (mounted) {
+          setState(() {
+            _previewContent = content;
+            _isLoadingPreview = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _previewContent = 'Errore nel caricamento del contenuto:\n\n${e.toString()}';
+            _isLoadingPreview = false;
+          });
+        }
+      }
+    }
+
+    Widget _buildPreviewContent(DriveFile file) {
+      // Fallback preview quando il contenuto non è ancora caricato
       return Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'File disponibili per anteprima (${files.length})',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(8),
               ),
-            ),
-            const SizedBox(height: 12),
-            // Lista orizzontale dei file
-            SizedBox(
-              height: 80,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: files.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final file = files[index];
-                  return _buildCompactFileCard(file);
-                },
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    Widget _buildCompactFileCard(DriveFile file) {
-      final isSelected = _selectedFileForPreview?.id == file.id;
-
-      return Material(
-        color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        elevation: 1,
-        child: InkWell(
-          onTap: () {
-            setState(() {
-              _selectedFileForPreview = file;
-            });
-          },
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            width: 120,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: isSelected ? AppColors.primary : AppColors.outline,
-                width: isSelected ? 2 : 1,
-              ),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Icona file
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Center(
-                    child: Text(
-                      file.fileTypeIcon,
-                      style: const TextStyle(fontSize: 16),
+              child: Row(
+                children: [
+                  Text(file.fileTypeIcon, style: const TextStyle(fontSize: 20)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          file.name,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          file.fileTypeDescription,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                // Nome file (troncato)
-                Text(
-                  file.name,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+            const SizedBox(height: 16),
+            const Text(
+              'Clicca per caricare l\'anteprima del contenuto',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
         ),
       );
     }
 
-    Widget _buildFilePreview(DriveFile file) {
-      return Container(
-        color: Colors.white,
-        child: _buildPreviewContent(file),
-      );
-    }
-
-    Widget _buildPreviewContent(DriveFile file) {
-      // Determina il tipo di preview in base al tipo di file
-      if (file.mimeType?.startsWith('application/vnd.google-apps.spreadsheet') ?? false) {
-        return _buildSpreadsheetPreview(file);
-      } else if (file.mimeType?.startsWith('application/vnd.google-apps.document') ?? false) {
-        return _buildDocumentPreview(file);
-      } else if (file.mimeType?.startsWith('image/') ?? false) {
-        return _buildImagePreview(file);
-      } else {
-        return _buildGenericPreview(file);
-      }
-    }
-
-    Widget _buildSpreadsheetPreview(DriveFile file) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.table_chart, color: Colors.green, size: 20),
-                const SizedBox(width: 8),
-                const Text(
-                  'Foglio di calcolo Google',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Anteprima non disponibile',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'ID: ${file.id}',
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textTertiary,
-              fontFamily: 'monospace',
-            ),
-          ),
-          if (file.modifiedTime != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Ultima modifica: ${_formatDateTime(file.modifiedTime!)}',
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textTertiary,
-              ),
-            ),
-          ],
-        ],
-      );
-    }
-
-    Widget _buildDocumentPreview(DriveFile file) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.description, color: Colors.blue, size: 20),
-                const SizedBox(width: 8),
-                const Text(
-                  'Documento Google',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.blue,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Anteprima non disponibile',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'ID: ${file.id}',
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textTertiary,
-              fontFamily: 'monospace',
-            ),
-          ),
-        ],
-      );
-    }
-
-    Widget _buildImagePreview(DriveFile file) {
-      // Per immagini potresti mostrare una miniatura
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.purple.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.image, color: Colors.purple, size: 20),
-                const SizedBox(width: 8),
-                const Text(
-                  'Immagine',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.purple,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Potresti mostrare l'immagine qui usando file.webContentLink
-          const Center(
-            child: Icon(
-              Icons.image_outlined,
-              size: 100,
-              color: AppColors.iconSecondary,
-            ),
-          ),
-        ],
-      );
-    }
-
-    Widget _buildGenericPreview(DriveFile file) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              children: [
-                Text(file.fileTypeIcon, style: const TextStyle(fontSize: 20)),
-                const SizedBox(width: 8),
-                Text(
-                  file.fileTypeDescription,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Tipo MIME: ${file.mimeType ?? "sconosciuto"}',
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-              fontFamily: 'monospace',
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'ID: ${file.id}',
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textTertiary,
-              fontFamily: 'monospace',
-            ),
-          ),
-        ],
-      );
-    }
 
     String _formatDateTime(DateTime date) {
       return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
