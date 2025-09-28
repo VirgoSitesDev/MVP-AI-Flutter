@@ -10,7 +10,7 @@ class AppColors {
   static const Color pink = Color.fromARGB(255, 255, 229, 232); // Rosa per il badge beta
 
   // Surface colors
-  static const Color surface = Color(0xFFFAFAFA);
+  static const Color surface = Color(0xFFFFFFFF);
   static const Color background = Color(0xFFFFFFFF); // Bianco puro
   static const Color outline = Color(0xFFE5E7EB); // Grigio bordi dal design
   static const Color divider = Color(0xFFE5E7EB); // Stesso grigio per divisori
