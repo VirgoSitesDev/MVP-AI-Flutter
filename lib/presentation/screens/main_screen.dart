@@ -15,6 +15,7 @@ import '../../data/datasources/remote/google_drive_content_extractor.dart';
 import '../providers/google_drive_provider.dart';
 import '../widgets/google_drive_dialog.dart';
 import '../widgets/gmail_dialog.dart';
+import '../widgets/email_preview_widget.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -746,7 +747,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             _buildCompactEmailSelector(selectedEmails),
             const Divider(height: 1, color: AppColors.divider),
             Expanded(
-              child: _buildEmailPreview(emailToPreview),
+              child: EmailPreviewWidget(email: emailToPreview),
             ),
           ],
         );

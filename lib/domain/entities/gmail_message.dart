@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class GmailMessage {
   final String id;
   final String threadId;
@@ -73,6 +75,14 @@ class GmailMessage {
     return _extractTextFromPart(payload);
   }
 
+  String get bodyHtml {
+    return _extractHtmlFromPart(payload);
+  }
+
+  bool get hasHtmlContent {
+    return bodyHtml.isNotEmpty;
+  }
+
   String _extractTextFromPart(GmailPayload part) {
     if (part.mimeType == 'text/plain' && part.body.data.isNotEmpty) {
       return _decodeBase64(part.body.data);
@@ -91,13 +101,41 @@ class GmailMessage {
     return snippet;
   }
 
+  String _extractHtmlFromPart(GmailPayload part) {
+    if (part.mimeType == 'text/html' && part.body.data.isNotEmpty) {
+      return _decodeBase64(part.body.data);
+    }
+
+    for (final subPart in part.parts) {
+      final html = _extractHtmlFromPart(subPart);
+      if (html.isNotEmpty) return html;
+    }
+
+    return '';
+  }
+
   String _decodeBase64(String data) {
     try {
-      final bytes = Uri.decodeFull(data).replaceAll('-', '+').replaceAll('_', '/');
-      final padding = '=' * (4 - (bytes.length % 4));
-      final base64String = bytes + padding;
-      return String.fromCharCodes(Uri.decodeComponent(base64String).codeUnits);
+      if (data.isEmpty) return '';
+
+      // Gmail uses URL-safe base64 encoding
+      String base64 = data.replaceAll('-', '+').replaceAll('_', '/');
+
+      // Add padding if needed
+      switch (base64.length % 4) {
+        case 2:
+          base64 += '==';
+          break;
+        case 3:
+          base64 += '=';
+          break;
+      }
+
+      // Import dart:convert for proper base64 decoding
+      final bytes = const Base64Decoder().convert(base64);
+      return utf8.decode(bytes);
     } catch (e) {
+      print('Base64 decode error: $e');
       return data;
     }
   }

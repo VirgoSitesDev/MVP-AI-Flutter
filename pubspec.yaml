@@ -46,6 +46,9 @@ dependencies:
   uuid: ^4.2.1
   intl: ^0.18.1  # Versione più vecchia
   mime: ^1.0.6
+
+  # HTML rendering for emails
+  flutter_html: ^3.0.0-beta.2
   
   # UI - VERSIONI COMPATIBILI
   flutter_svg: ^2.0.9  # Versione compatibile con Dart 3.3.0
