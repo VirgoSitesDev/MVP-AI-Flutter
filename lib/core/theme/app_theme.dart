@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'colors.dart';
 
 class AppTextStyles {
-  // Typography dal design specifico
   static const TextStyle heading1 = TextStyle(
     fontSize: 24,
     fontWeight: FontWeight.w600,
@@ -20,8 +19,7 @@ class AppTextStyles {
     fontWeight: FontWeight.w600,
     color: AppColors.textPrimary,
   );
-  
-  // Body text styles per il design
+
   static const TextStyle body = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w400,
@@ -42,8 +40,7 @@ class AppTextStyles {
     color: Color.fromARGB(255, 76, 77, 78),
     height: 1.3,
   );
-  
-  // Caption per labels e elementi secondari
+
   static const TextStyle caption = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w500,
@@ -57,8 +54,7 @@ class AppTextStyles {
     color: Color.fromARGB(255, 78, 78, 80),
     letterSpacing: 0.3,
   );
-  
-  // Button styles
+
   static const TextStyle button = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w500,
@@ -71,7 +67,6 @@ class AppTextStyles {
     letterSpacing: 0.2,
   );
 
-  // Badge styles dal design
   static const TextStyle badge = TextStyle(
     fontSize: 10,
     fontWeight: FontWeight.w600,
@@ -86,7 +81,6 @@ class AppTextStyles {
     letterSpacing: 0.2,
   );
 
-  // Chat message styles
   static const TextStyle chatMessage = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w400,
@@ -94,7 +88,6 @@ class AppTextStyles {
     height: 1.5,
   );
 
-  // Input field styles
   static const TextStyle input = TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w400,
@@ -107,7 +100,6 @@ class AppTextStyles {
     color: Color.fromARGB(255, 83, 84, 85),
   );
 
-  // Section header styles
   static const TextStyle sectionHeader = TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w500,
@@ -119,7 +111,7 @@ class AppTextStyles {
 class AppTheme {
   static ThemeData get lightTheme => ThemeData(
     useMaterial3: true,
-    fontFamily: 'SF Pro Display', // Se disponibile, altrimenti fallback al default
+    fontFamily: 'SF Pro Display',
     
     colorScheme: const ColorScheme.light(
       primary: AppColors.primary,
@@ -132,8 +124,7 @@ class AppTheme {
       onError: Colors.white,
       outline: AppColors.outline,
     ),
-    
-    // App Bar theme per l'header
+
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.background,
       foregroundColor: AppColors.textPrimary,
@@ -142,11 +133,7 @@ class AppTheme {
       titleTextStyle: AppTextStyles.heading3,
       surfaceTintColor: Colors.transparent,
     ),
-    
-    // RIMOSSO cardTheme completamente - non supportato in Flutter 3.19.0
-    // Il tema delle card verrà gestito direttamente nei widget
-    
-    // Button themes
+
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
@@ -176,8 +163,7 @@ class AppTheme {
         textStyle: AppTextStyles.button,
       ),
     ),
-    
-    // Input decoration theme per campi di input
+
     inputDecorationTheme: InputDecorationTheme(
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(24),
@@ -205,28 +191,24 @@ class AppTheme {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     ),
-    
-    // Divider theme
+
     dividerTheme: const DividerThemeData(
       color: AppColors.divider,
       thickness: 1,
       space: 1,
     ),
-    
-    // List tile theme
+
     listTileTheme: const ListTileThemeData(
       dense: true,
       visualDensity: VisualDensity.compact,
       contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     ),
-    
-    // Icon theme
+
     iconTheme: const IconThemeData(
       color: AppColors.iconPrimary,
       size: 20,
     ),
-    
-    // Text theme
+
     textTheme: const TextTheme(
       displayLarge: AppTextStyles.heading1,
       displayMedium: AppTextStyles.heading2,
@@ -241,16 +223,14 @@ class AppTheme {
       labelMedium: AppTextStyles.buttonSmall,
       labelSmall: AppTextStyles.captionSmall,
     ),
-    
-    // Expansion tile theme
+
     expansionTileTheme: const ExpansionTileThemeData(
       tilePadding: EdgeInsets.symmetric(horizontal: 0, vertical: 4),
       childrenPadding: EdgeInsets.zero,
       iconColor: Color.fromARGB(255, 64, 66, 69),
       textColor: AppColors.textPrimary,
     ),
-    
-    // Scroll bar theme - USANDO MaterialStateProperty invece di WidgetStateProperty
+
     scrollbarTheme: ScrollbarThemeData(
       thumbColor: MaterialStateProperty.all(const Color.fromARGB(255, 64, 65, 67).withOpacity(0.3)),
       trackColor: MaterialStateProperty.all(Colors.transparent),
@@ -259,7 +239,6 @@ class AppTheme {
     ),
   );
 
-  // Dark theme (per compatibilità futura)
   static ThemeData get darkTheme => ThemeData(
     useMaterial3: true,
     colorScheme: const ColorScheme.dark(

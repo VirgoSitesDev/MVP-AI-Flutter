@@ -1,12 +1,11 @@
-// lib/data/datasources/remote/google_drive_content_extractor.dart
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
-import 'package:excel/excel.dart' as excel_lib; // Import della libreria Excel
+import 'package:excel/excel.dart' as excel_lib;
 import 'google_drive_service.dart';
 
 class StructuredContent {
-  final String type; // 'text', 'table'
+  final String type;
   final String? text;
   final List<List<String>>? tableData;
   final List<String>? headers;
@@ -33,13 +32,10 @@ class GoogleDriveContentExtractor {
   
   Future<StructuredContent> extractStructuredContent(DriveFile file) async {
     try {
-
-      // Per file Google Workspace, usa l'export
       if (file.mimeType?.startsWith('application/vnd.google-apps') ?? false) {
         return await _extractGoogleWorkspaceStructuredContent(file);
       }
 
-      // Per altri file, verifica il tipo
       switch (file.mimeType) {
         case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
         case 'application/vnd.ms-excel':
@@ -47,7 +43,6 @@ class GoogleDriveContentExtractor {
         case 'application/x-msexcel':
           return await _extractExcelStructuredContent(file);
         default:
-          // Per altri tipi, ritorna come testo
           final textContent = await extractContent(file);
           return StructuredContent(
             type: 'text',
@@ -66,13 +61,10 @@ class GoogleDriveContentExtractor {
 
   Future<String> extractContent(DriveFile file) async {
     try {
-      
-      // Per file Google Workspace, usa l'export
       if (file.mimeType?.startsWith('application/vnd.google-apps') ?? false) {
         return await _extractGoogleWorkspaceContent(file);
       }
-      
-      // Per altri file, verifica il tipo
+
       switch (file.mimeType) {
         case 'text/plain':
         case 'text/csv':
@@ -96,7 +88,6 @@ class GoogleDriveContentExtractor {
           return await _extractWordMetadata(file);
           
         default:
-          // Se il nome del file termina con .xlsx o .xls, prova comunque a leggerlo come Excel
           if (file.name.toLowerCase().endsWith('.xlsx') || 
               file.name.toLowerCase().endsWith('.xls')) {
             return await _extractExcelContent(file);
@@ -110,15 +101,11 @@ class GoogleDriveContentExtractor {
   
   Future<String> _extractExcelContent(DriveFile file) async {
     try {
-      
-      // Scarica il file
       final bytes = await _driveService.downloadFile(file.id);
       if (bytes == null || bytes.isEmpty) {
         return _getFileMetadata(file, reason: 'File Excel vuoto o non accessibile');
       }
-      
-      
-      // Decodifica il file Excel
+
       final excel = excel_lib.Excel.decodeBytes(Uint8List.fromList(bytes));
       
       final StringBuffer buffer = StringBuffer();
@@ -129,8 +116,7 @@ class GoogleDriveContentExtractor {
       buffer.writeln('---\n');
       
       int totalRows = 0;
-      
-      // Itera attraverso tutti i fogli
+
       for (final tableName in excel.tables.keys) {
         final table = excel.tables[tableName];
         if (table == null) continue;
@@ -138,22 +124,19 @@ class GoogleDriveContentExtractor {
         buffer.writeln('FOGLIO: $tableName');
         buffer.writeln('Righe: ${table.maxRows}, Colonne: ${table.maxCols}');
         buffer.writeln('');
-        
-        // Estrai il contenuto del foglio
+
         int rowCount = 0;
         List<String>? headers;
         
         for (final row in table.rows) {
           rowCount++;
           totalRows++;
-          
-          // Limita il numero di righe per non sovraccaricare
+
           if (rowCount > maxExcelRows) {
             buffer.writeln('\n[... Foglio troncato dopo $maxExcelRows righe ...]');
             break;
           }
-          
-          // Converti la riga in stringa con formattazione migliorata
+
           final rowData = <String>[];
           for (final cell in row) {
             String cellText = '';
@@ -164,24 +147,20 @@ class GoogleDriveContentExtractor {
             
             rowData.add(cellText);
           }
-          
-          // Rimuovi celle vuote alla fine per output più pulito
+
           while (rowData.isNotEmpty && rowData.last.isEmpty) {
             rowData.removeLast();
           }
-          
-          // Salta righe completamente vuote
+
           if (rowData.every((cell) => cell.isEmpty)) {
             continue;
           }
-          
-          // Se è la prima riga con dati, considerala come header
+
           if (headers == null && rowData.any((cell) => cell.isNotEmpty)) {
             headers = List.from(rowData);
             buffer.writeln('COLONNE: ${headers.join(' | ')}');
             buffer.writeln('-' * 50);
           } else if (rowData.any((cell) => cell.isNotEmpty)) {
-            // Formatta i dati con gli headers se disponibili
             if (headers != null && headers.isNotEmpty) {
               final formattedRow = <String>[];
               for (int i = 0; i < rowData.length && i < headers.length; i++) {
@@ -201,21 +180,18 @@ class GoogleDriveContentExtractor {
         }
         
         buffer.writeln('\n');
-        
-        // Se abbiamo già troppe righe totali, ferma
+
         if (totalRows > maxExcelRows * 2) {
           buffer.writeln('[... Altri fogli non mostrati per limiti di spazio ...]');
           break;
         }
       }
-      
-      // Aggiungi statistiche riassuntive
+
       buffer.writeln('---');
       buffer.writeln('RIEPILOGO:');
       buffer.writeln('Totale fogli processati: ${excel.tables.length}');
       buffer.writeln('Totale righe con dati: ${totalRows}');
-      
-      // Se il file sembra contenere dati specifici (basandoci sul nome)
+
       final fileName = file.name.toLowerCase();
       if (fileName.contains('vini') || fileName.contains('wine')) {
         buffer.writeln('\n📝 Database di vini identificato');
@@ -313,7 +289,6 @@ Link al file: ${file.webViewLink ?? 'N/A'}
 """;
   }
 
-  /// Estrae contenuto da file Google Workspace
   Future<String> _extractGoogleWorkspaceContent(DriveFile file) async {
     try {
       String exportMimeType;
@@ -349,8 +324,7 @@ Link al file: ${file.webViewLink ?? 'N/A'}
       } catch (e) {
         return _getFileMetadata(file);
       }
-      
-      // Se è un CSV da Google Sheets, formattalo meglio
+
       if (fileType == 'Google Sheets' && exportMimeType == 'text/csv') {
         content = _formatCsvContent(content, file.name);
       }
@@ -375,8 +349,7 @@ Fine del file: ${file.name}
       return _getFileMetadata(file);
     }
   }
-  
-  /// Estrae contenuto strutturato da Google Workspace
+
   Future<StructuredContent> _extractGoogleWorkspaceStructuredContent(DriveFile file) async {
     try {
       String exportMimeType;
@@ -425,7 +398,6 @@ Fine del file: ${file.name}
         );
       }
 
-      // Se è un CSV da Google Sheets, crealo come tabella strutturata
       if (fileType == 'Google Sheets' && exportMimeType == 'text/csv') {
         return _parseCSVToStructuredContent(content, file.name);
       }
@@ -605,8 +577,6 @@ Fine del file: ${file.name}
     }
   }
   
-  // ... resto dei metodi esistenti ...
-  
   Future<String> _extractTextContent(DriveFile file) async {
     try {
       final bytes = await _driveService.downloadFile(file.id);
@@ -637,8 +607,6 @@ Fine del file: ${file.name}
       return _getFileMetadata(file, reason: 'Errore lettura: ${e.toString()}');
     }
   }
-  
-  // Gli altri metodi rimangono invariati...
   
   String _cleanContent(String content) {
     content = content.replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'), '');

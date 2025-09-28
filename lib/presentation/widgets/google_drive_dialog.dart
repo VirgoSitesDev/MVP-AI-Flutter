@@ -1,4 +1,3 @@
-// lib/presentation/widgets/google_drive_dialog.dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,17 +35,14 @@ class _GoogleDriveDialogState extends ConsumerState<GoogleDriveDialog> {
   }
 
   Future<void> _checkAndInitialize() async {
-    // Check if Google is authenticated first
     final googleAuthState = ref.read(googleAuthStateProvider);
 
     if (googleAuthState is! GoogleAuthAuthenticated) {
-      // If not authenticated, show error
       ref.read(googleDriveStateProvider.notifier).state =
           const GoogleDriveError('Non sei autenticato con Google. Torna indietro e effettua il login.');
       return;
     }
 
-    // If authenticated, proceed with initialization
     try {
       await ref.read(googleDriveStateProvider.notifier).initialize();
     } catch (e) {
@@ -81,22 +77,16 @@ class _GoogleDriveDialogState extends ConsumerState<GoogleDriveDialog> {
         ),
         child: Column(
           children: [
-            // Header
             _buildHeader(),
-            
-            // Search bar
             _buildSearchBar(),
-            
-            // Breadcrumbs (se in navigazione cartelle)
+
             if (driveState is GoogleDriveLoaded && driveState.breadcrumbs.isNotEmpty)
               _buildBreadcrumbs(driveState.breadcrumbs),
-            
-            // Content area
+
             Expanded(
               child: _buildContent(driveState),
             ),
-            
-            // Footer con pulsanti
+
             _buildFooter(selectedFiles),
           ],
         ),
@@ -314,11 +304,9 @@ class _GoogleDriveDialogState extends ConsumerState<GoogleDriveDialog> {
       child: InkWell(
         onTap: () {
           if (file.isFolder) {
-            // Naviga nella cartella
             ref.read(googleDriveStateProvider.notifier)
                 .navigateToFolder(file.id, file.name);
           } else {
-            // Toggle selezione file
             setState(() {
               if (_tempSelectedIds.contains(file.id)) {
                 _tempSelectedIds.remove(file.id);
@@ -340,7 +328,6 @@ class _GoogleDriveDialogState extends ConsumerState<GoogleDriveDialog> {
           ),
           child: Row(
             children: [
-              // Checkbox (solo per file, non cartelle)
               if (!file.isFolder)
                 Checkbox(
                   value: isSelected,
@@ -355,8 +342,7 @@ class _GoogleDriveDialogState extends ConsumerState<GoogleDriveDialog> {
                   },
                   activeColor: AppColors.primary,
                 ),
-              
-              // Icona file
+
               Container(
                 width: 40,
                 height: 40,
@@ -375,8 +361,7 @@ class _GoogleDriveDialogState extends ConsumerState<GoogleDriveDialog> {
               ),
               
               const SizedBox(width: 12),
-              
-              // Info file
+
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,8 +423,7 @@ class _GoogleDriveDialogState extends ConsumerState<GoogleDriveDialog> {
                   ],
                 ),
               ),
-              
-              // Freccia per le cartelle
+
               if (file.isFolder)
                 const Icon(
                   Icons.chevron_right,
@@ -464,7 +448,6 @@ class _GoogleDriveDialogState extends ConsumerState<GoogleDriveDialog> {
       ),
       child: Row(
         children: [
-          // Contatore file selezionati
           if (totalSelected > 0) ...[
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -484,8 +467,7 @@ class _GoogleDriveDialogState extends ConsumerState<GoogleDriveDialog> {
           ],
           
           const Spacer(),
-          
-          // Pulsanti azione
+
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Annulla'),
@@ -495,19 +477,16 @@ class _GoogleDriveDialogState extends ConsumerState<GoogleDriveDialog> {
           
           ElevatedButton(
             onPressed: _tempSelectedIds.isEmpty ? null : () {
-              // Ottieni i file selezionati
               final driveState = ref.read(googleDriveStateProvider);
               if (driveState is GoogleDriveLoaded) {
                 final selectedFiles = driveState.files
                     .where((f) => _tempSelectedIds.contains(f.id))
                     .toList();
-                
-                // Aggiungi ai file selezionati globalmente
+
                 for (final file in selectedFiles) {
                   ref.read(selectedDriveFilesProvider.notifier).addFile(file);
                 }
-                
-                // Chiudi il dialog e ritorna i file selezionati
+
                 Navigator.of(context).pop(selectedFiles);
               }
             },

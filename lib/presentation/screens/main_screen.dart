@@ -28,7 +28,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   bool _isPersonalPinsExpanded = true;
   bool _isOrgPinsExpanded = true;
   bool _isUtilitiesExpanded = false;
-  bool _isPreviewFullscreen = false; // New state for fullscreen mode
+  bool _isPreviewFullscreen = false;
 
   DriveFile? _selectedFileForPreview;
   String? _previewContent;
@@ -36,7 +36,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   bool _isLoadingPreview = false;
   final GoogleDriveContentExtractor _contentExtractor = GoogleDriveContentExtractor();
 
-  // Per la smart preview window
   List<String> selectedEmails = [];
   
   @override
@@ -45,8 +44,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToBottom();
     });
-    
-    // Listener per aggiornare il pulsante send quando cambia il testo
+
     _messageController.addListener(() {
       setState(() {});
     });
@@ -86,8 +84,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Widget build(BuildContext context) {
     final chatSession = ref.watch(currentChatSessionProvider);
     final messageState = ref.watch(messageStateProvider);
-    
-    // Auto-scroll quando arrivano nuovi messaggi
+
     ref.listen(currentChatSessionProvider, (previous, next) {
       if (next != null && previous != null) {
         if (next.messages.length > previous.messages.length) {
@@ -103,26 +100,20 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // Custom Header invece di AppBar
           _buildCustomHeader(),
-          
-          // Contenuto principale
+
           Expanded(
             child: _isPreviewFullscreen
                 ? Row(
                     children: [
-                      // In fullscreen mode: left side has sidebar + chat
                       Expanded(
                         flex: 7,
                         child: Column(
                           children: [
-                            // Sidebar and chat area compressed
                             Expanded(
                               child: Row(
                                 children: [
-                                  // Sidebar keeps original width (320px)
                                   _buildLeftSidebar(),
-                                  // Chat area gets compressed
                                   Expanded(
                                     child: _buildChatArea(chatSession, messageState),
                                   ),
@@ -132,7 +123,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                           ],
                         ),
                       ),
-                      // Right side: Smart Preview (smaller than before)
                       Expanded(
                         flex: 5,
                         child: _buildSmartPreviewWindow(),
@@ -141,17 +131,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   )
                 : Row(
                     children: [
-                      // Normal mode: sidebar on left
                       _buildLeftSidebar(),
 
-                      // Area principale destra (Smart Preview + Chat)
                       Expanded(
                         child: Column(
                           children: [
-                            // Smart Preview Window in alto
                             _buildSmartPreviewWindow(),
 
-                            // Area chat in basso
                             Expanded(
                               child: _buildChatArea(chatSession, messageState),
                             ),
@@ -177,13 +163,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       ),
       child: Row(
         children: [
-          // Sezione logo con larghezza fissa (stessa della sidebar)
           Container(
             width: 320,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                // Logo allineato a sinistra
                 Image.asset(
                   'assets/images/logo_virgo.png',
                   width: 28,
@@ -210,11 +194,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     );
                   },
                 ),
-                
-                // Spacer per spingere versione e beta a destra
+
                 const Spacer(),
-                
-                // Versione e Beta allineati a destra
+
                 const Text(
                   'v.0.0.1',
                   style: TextStyle(
@@ -224,8 +206,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                
-                // Badge Beta con font size 12
+
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
@@ -244,20 +225,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               ],
             ),
           ),
-          
-          // Sezione centrale (vuota per ora, puoi aggiungere titolo chat o altro)
+
           const Expanded(
             child: SizedBox(),
           ),
-          
-          // Sezione destra con status e menu
+
           Container(
             width: 320,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // Google Workspace status indicator
                 Consumer(
                   builder: (context, ref, _) {
                     final googleAuthState = ref.watch(googleAuthStateProvider);
@@ -324,7 +302,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 PopupMenuButton(
                   icon: const Icon(Icons.more_vert, size: 20, color: AppColors.iconPrimary),
                   itemBuilder: (context) => [
-                    // Debug Google Auth
                     if (kDebugMode)
                       PopupMenuItem(
                         onTap: () {
@@ -389,7 +366,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         ),
         child: Column(
           children: [
-            // Riferimenti della Sessione
             Container(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -407,8 +383,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   const SizedBox(height: 12),
                   const Divider(height: 1, color: AppColors.divider),
                   const SizedBox(height: 12),
-                  
-                  // Mostra file selezionati da Google Drive
+
                   Consumer(
                     builder: (context, ref, _) {
                       final selectedFiles = ref.watch(selectedDriveFilesProvider);
@@ -426,10 +401,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                       
                       return Column(
                         children: [
-                          // File da Google Drive
                           ...selectedFiles.map((file) => _buildDriveFileReference(file)),
-                          
-                          // Sessione attiva
+
                           if (currentSession != null)
                             _buildReferenceItem(
                               title: currentSession.title,
@@ -443,7 +416,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 ],
               ),
             ),
-            // Riferimenti Permanenti
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -462,11 +434,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     const SizedBox(height: 12),
                     const Divider(height: 1, color: AppColors.divider),
                     const SizedBox(height: 8),
-                    
-                    // Google Workspace Connection
+
                     _buildGoogleConnectionSection(),
-                    
-                    // Container con bordo per "Le tue conversazioni"
+
                     Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
@@ -531,8 +501,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         ),
                       ),
                     ),
-                    
-                    // Container con bordo per "Pin della tua organizzazione"
+
                     Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
@@ -553,8 +522,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     ),
                     
                     const Spacer(),
-                    
-                    // Utilities section in fondo
+
                     _buildExpandableSection(
                       icon: Icons.lightbulb_outline,
                       title: 'Scopri le funzionalità',
@@ -583,7 +551,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       return AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
-        height: _isPreviewFullscreen ? double.infinity : 250, // Dynamic height
+        height: _isPreviewFullscreen ? double.infinity : 250,
         decoration: BoxDecoration(
           color: AppColors.previewBackground,
           border: _isPreviewFullscreen
@@ -596,7 +564,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         ),
         child: Column(
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: const BoxDecoration(
@@ -640,7 +607,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     ),
                     const SizedBox(width: 12),
                   ],
-                  // Fullscreen toggle button - always visible
                   Tooltip(
                     message: _isPreviewFullscreen
                         ? 'Esci dalla modalità schermo intero'
@@ -684,7 +650,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               ),
             ),
 
-            // Content area
             Expanded(
               child: selectedFiles.isNotEmpty
                   ? _buildPreviewArea(selectedFiles)
@@ -729,13 +694,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       );
     }
 
-    // Aggiungi questi metodi helper:
-
     Widget _buildPreviewArea(List<DriveFile> selectedFiles) {
-      // Check if currently selected file is still in the list
       if (_selectedFileForPreview != null &&
           !selectedFiles.any((file) => file.id == _selectedFileForPreview!.id)) {
-        // Selected file was removed, clear the preview
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             setState(() {
@@ -748,11 +709,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         });
       }
 
-      // Se nessun file è selezionato per preview, usa il primo della lista
       final fileToPreview = _selectedFileForPreview ?? selectedFiles.first;
 
-
-      // Load content on first display or when file changes
       if (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id)) {
@@ -763,10 +721,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
       return Column(
         children: [
-          // File selector compatto in alto
           _buildCompactFileSelector(selectedFiles, fileToPreview),
           const Divider(height: 1, color: AppColors.divider),
-          // Anteprima del documento selezionato
           Expanded(
             child: _buildFilePreviewSimple(fileToPreview),
           ),
@@ -821,7 +777,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         color: AppColors.surface,
         child: Row(
           children: [
-            // Icona e info file corrente
             Container(
               width: 32,
               height: 32,
@@ -862,7 +817,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 ],
               ),
             ),
-            // Selettore file (se ci sono più file)
             if (files.length > 1) ...[
               Container(
                 height: 32,
@@ -921,7 +875,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
 
     Future<void> _loadFileContent(DriveFile file) async {
-      // Imposta immediatamente il file selezionato per evitare chiamate multiple
       _selectedFileForPreview = file;
 
       if (mounted) {
@@ -969,7 +922,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title
             Text(
               content.title,
               style: const TextStyle(
@@ -988,7 +940,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Table
             Container(
               decoration: BoxDecoration(
                 border: Border.all(color: AppColors.outline),
@@ -1087,7 +1038,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title
             Text(
               content.title,
               style: const TextStyle(
@@ -1098,7 +1048,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Content
             SelectableText(
               text,
               style: const TextStyle(
@@ -1114,7 +1063,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     Widget _buildPreviewContent(DriveFile file) {
-      // Fallback preview quando il contenuto non è ancora caricato
       return Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -1178,7 +1126,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Widget _buildChatArea(chatSession, messageState) {
     return Column(
       children: [
-        // Messages area
         Expanded(
           child: Container(
             color: Colors.white,
@@ -1228,8 +1175,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   ),
           ),
         ),
-        
-        // Input area
+
         Container(
           padding: const EdgeInsets.all(20),
           decoration: const BoxDecoration(
@@ -1312,7 +1258,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: message.isUser 
-            ? const Color(0xFFE8E9EB)  // Grigio leggermente più scuro per i messaggi utente
+            ? const Color(0xFFE8E9EB)
             : AppColors.assistantMessageBg,
         borderRadius: BorderRadius.circular(12),
       ),
@@ -1321,7 +1267,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         children: [
           Row(
             children: [
-              // Usa il logo Virgo per l'assistente, icona persona per l'utente
               if (message.isUser)
                 Icon(
                   Icons.person,
@@ -1335,7 +1280,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   height: 16,
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) {
-                    // Fallback se l'immagine non carica
                     return Container(
                       width: 16,
                       height: 16,
@@ -1498,7 +1442,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       ),
       child: InkWell(
         onTap: () {
-          // Carica la sessione selezionata
           ref.read(currentChatSessionProvider.notifier).loadSession(session);
         },
         borderRadius: BorderRadius.circular(4),
@@ -1593,14 +1536,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // Se è la sessione corrente, eliminala
               final currentSession = ref.read(currentChatSessionProvider);
               if (currentSession?.id == session.id) {
                 ref.read(currentChatSessionProvider.notifier).deleteCurrentSession();
               } else {
-                // Altrimenti elimina direttamente dal database
                 SupabaseService.deleteChatSession(session.id).then((_) {
-                  // Aggiorna la lista
                   ref.invalidate(chatSessionsProvider);
                 });
               }
@@ -1633,17 +1573,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Widget _buildUtilityItem(IconData icon, String title, {bool isRed = false}) {
     return InkWell(
       onTap: () {
-        // Handle utility action
         if (title == 'Nuova conversazione') {
-          // Crea nuova sessione
           ref.read(currentChatSessionProvider.notifier).createNewSession();
         } else if (title == 'Riassunto sessione') {
-          // Genera riassunto (da implementare)
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Funzionalità in arrivo!')),
           );
         } else if (title == 'Termina sessione') {
-          // Termina sessione corrente
           ref.read(currentChatSessionProvider.notifier).clearSession();
         }
       },
@@ -1932,10 +1868,6 @@ Widget _buildGoogleConnectionSection() {
 
   void _showGoogleDriveSearch() async {
     try {
-      if (kDebugMode) {
-        print('🔍 Apertura dialog Google Drive...');
-      }
-
       final selectedFiles = await GoogleDriveDialog.show(context);
 
       if (selectedFiles != null && selectedFiles.isNotEmpty) {
@@ -1946,14 +1878,6 @@ Widget _buildGoogleConnectionSection() {
               backgroundColor: AppColors.success,
             ),
           );
-        }
-
-        if (kDebugMode) {
-          print('✅ ${selectedFiles.length} file selezionati da Google Drive');
-        }
-      } else {
-        if (kDebugMode) {
-          print('ℹ️ Nessun file selezionato o dialog chiuso');
         }
       }
     } catch (e) {

@@ -1,4 +1,3 @@
-// lib/presentation/widgets/chat/chat_input.dart
 import 'package:flutter/material.dart';
 import '../../../core/theme/colors.dart';
 

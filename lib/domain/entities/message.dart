@@ -1,4 +1,3 @@
-// lib/domain/entities/message.dart
 import 'package:uuid/uuid.dart';
 
 class Message {
@@ -17,8 +16,7 @@ class Message {
     this.status = MessageStatus.sent,
     this.sessionId,
   });
-  
-  /// Crea un messaggio utente
+
   factory Message.user({
     required String content,
     String? sessionId,
@@ -32,8 +30,7 @@ class Message {
       sessionId: sessionId,
     );
   }
-  
-  /// Crea un messaggio dell'assistente
+
   factory Message.assistant({
     required String content,
     String? sessionId,
@@ -47,8 +44,7 @@ class Message {
       sessionId: sessionId,
     );
   }
-  
-  /// Crea un messaggio di sistema (per errori, info, etc.)
+
   factory Message.system({
     required String content,
     String? sessionId,
@@ -62,8 +58,7 @@ class Message {
       sessionId: sessionId,
     );
   }
-  
-  /// Crea una copia del messaggio con modifiche
+
   Message copyWith({
     String? id,
     String? content,

@@ -1,4 +1,3 @@
-// lib/presentation/screens/login_screen.dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +6,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/theme/colors.dart';
 import '../providers/chat_provider.dart';
 
-// Conditional import for web-only features
 import 'dart:html' as html show window;
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -22,12 +20,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     if (kIsWeb && kDebugMode) {
-      // Listen for OAuth-related URL changes
       html.window.addEventListener('popstate', (event) {
         print('🔄 PopState event: ${html.window.location.href}');
       });
 
-      // Listen for hash changes
       html.window.addEventListener('hashchange', (event) {
         print('🔄 Hash change: ${html.window.location.href}');
       });
@@ -49,7 +45,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Logo Virgo
                 Center(
                   child: Image.asset(
                     'assets/images/logo_virgo_extended.png',
@@ -96,11 +91,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 
                 const SizedBox(height: 48),
-                
-                // Google Sign In Button
+
                 _buildGoogleSignInButton(authState),
-                
-                // Error Message
+
                 if (authState is AppAuthStateError) ...[
                   const SizedBox(height: 24),
                   Container(
@@ -143,8 +136,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ],
                 
                 const SizedBox(height: 48),
-                
-                // Info Security
+
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -189,8 +181,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 
                 const SizedBox(height: 32),
-                
-                // Footer
+
                 Text(
                   '© 2025 Virgo AI Assistant',
                   style: TextStyle(
@@ -223,12 +214,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
       child: ElevatedButton(
         onPressed: isLoading ? null : () async {
-          if (kDebugMode) {
-            print('🔘 Login button pressed');
-            print('🌍 Current URL: ${html.window.location.href}');
-            print('🌍 Current origin: ${html.window.location.origin}');
-            print('🌍 Current pathname: ${html.window.location.pathname}');
-          }
           try {
             await ref.read(authStateProvider.notifier).signInWithSupabaseGoogle();
           } catch (e) {

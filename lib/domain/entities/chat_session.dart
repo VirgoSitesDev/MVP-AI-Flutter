@@ -1,4 +1,3 @@
-// lib/domain/entities/chat_session.dart
 import 'package:uuid/uuid.dart';
 import 'message.dart';
 
@@ -20,8 +19,7 @@ class ChatSession {
     this.isActive = true,
     this.contextSummary,
   });
-  
-  /// Crea una nuova sessione chat
+
   factory ChatSession.create({
     String? title,
   }) {
@@ -33,8 +31,7 @@ class ChatSession {
       updatedAt: now,
     );
   }
-  
-  /// Aggiunge un messaggio alla sessione
+
   ChatSession addMessage(Message message) {
     final updatedMessages = [...messages, message];
     return copyWith(
@@ -42,8 +39,7 @@ class ChatSession {
       updatedAt: DateTime.now(),
     );
   }
-  
-  /// Aggiorna l'ultimo messaggio (utile per streaming)
+
   ChatSession updateLastMessage(String content) {
     if (messages.isEmpty) return this;
     
@@ -59,8 +55,7 @@ class ChatSession {
       updatedAt: DateTime.now(),
     );
   }
-  
-  /// Segna un messaggio come errore
+
   ChatSession markLastMessageError() {
     if (messages.isEmpty) return this;
     
@@ -75,8 +70,7 @@ class ChatSession {
       updatedAt: DateTime.now(),
     );
   }
-  
-  /// Aggiorna il titolo automaticamente basandosi sui messaggi
+
   ChatSession updateTitleFromMessages() {
     if (messages.isEmpty) return this;
     
@@ -92,24 +86,18 @@ class ChatSession {
     
     return copyWith(title: newTitle);
   }
-  
-  /// Ottiene solo i messaggi dell'utente e dell'assistente (esclude sistema)
+
   List<Message> get conversationMessages {
     return messages.where((msg) => msg.status != MessageStatus.system).toList();
   }
-  
-  /// Ottiene l'ultimo messaggio
+
   Message? get lastMessage {
     return messages.isNotEmpty ? messages.last : null;
   }
-  
-  /// Verifica se la sessione ha messaggi
+
   bool get hasMessages => messages.isNotEmpty;
-  
-  /// Conta i messaggi dell'utente
   int get userMessageCount => messages.where((msg) => msg.isUser).length;
-  
-  /// Crea una copia della sessione con modifiche
+
   ChatSession copyWith({
     String? id,
     String? title,

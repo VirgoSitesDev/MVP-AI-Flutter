@@ -1,4 +1,3 @@
-// lib/presentation/widgets/chat/message_bubble.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/colors.dart';
@@ -131,7 +130,6 @@ class MessageBubble extends StatelessWidget {
             height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              // CORREZIONE: Usa MaterialStateProperty invece di AlwaysStoppedAnimation
               color: message.isUser ? Colors.white : AppColors.primary,
             ),
           ),
