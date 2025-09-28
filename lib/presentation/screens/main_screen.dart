@@ -730,6 +730,21 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     // Aggiungi questi metodi helper:
 
     Widget _buildPreviewArea(List<DriveFile> selectedFiles) {
+      // Check if currently selected file is still in the list
+      if (_selectedFileForPreview != null &&
+          !selectedFiles.any((file) => file.id == _selectedFileForPreview!.id)) {
+        // Selected file was removed, clear the preview
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _selectedFileForPreview = null;
+              _previewContent = null;
+              _isLoadingPreview = false;
+            });
+          }
+        });
+      }
+
       // Se nessun file è selezionato per preview, usa il primo della lista
       final fileToPreview = _selectedFileForPreview ?? selectedFiles.first;
 
@@ -739,7 +754,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       print('🔍 _previewContent != null: ${_previewContent != null}');
       print('🔍 _isLoadingPreview: $_isLoadingPreview');
 
-      // Load content on first display
+      // Load content on first display or when file changes
       if (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id)) {
