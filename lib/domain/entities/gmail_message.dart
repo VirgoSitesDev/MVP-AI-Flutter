@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 
 class GmailMessage {
   final String id;
@@ -71,12 +72,85 @@ class GmailMessage {
   bool get isImportant => labelIds.contains('IMPORTANT');
   bool get isStarred => labelIds.contains('STARRED');
 
+  GmailCategory get category {
+    // Gmail usa le label per categorizzare le email
+    if (labelIds.contains('CATEGORY_PROMOTIONS')) return GmailCategory.promotions;
+    if (labelIds.contains('CATEGORY_SOCIAL')) return GmailCategory.social;
+    if (labelIds.contains('CATEGORY_UPDATES')) return GmailCategory.updates;
+    if (labelIds.contains('CATEGORY_FORUMS')) return GmailCategory.forums;
+
+    // Fallback: categorizza in base al contenuto
+    final subjectLower = subject.toLowerCase();
+    final fromLower = from.toLowerCase();
+    final snippetLower = snippet.toLowerCase();
+
+    // Promozioni
+    if (_isPromotionalEmail(subjectLower, fromLower, snippetLower)) {
+      return GmailCategory.promotions;
+    }
+
+    // Social
+    if (_isSocialEmail(fromLower)) {
+      return GmailCategory.social;
+    }
+
+    // Aggiornamenti
+    if (_isUpdateEmail(subjectLower, fromLower)) {
+      return GmailCategory.updates;
+    }
+
+    // Default: Principale
+    return GmailCategory.primary;
+  }
+
+  bool _isPromotionalEmail(String subject, String from, String snippet) {
+    final promoKeywords = [
+      'offerta', 'sconto', 'saldi', 'promozione', 'coupon', 'deal', 'shop',
+      'acquista', 'risparmia', 'gratis', 'newsletter', 'marketing',
+      'black friday', 'cyber monday', 'limited time', 'exclusive'
+    ];
+
+    final promoDomains = [
+      'newsletter', 'promo', 'offers', 'deals', 'shop', 'store',
+      'marketing', 'sales', 'justeat', 'takeaway', 'amazon', 'ebay'
+    ];
+
+    return promoKeywords.any((keyword) =>
+      subject.contains(keyword) || snippet.contains(keyword)) ||
+      promoDomains.any((domain) => from.contains(domain));
+  }
+
+  bool _isSocialEmail(String from) {
+    final socialDomains = [
+      'facebook', 'twitter', 'instagram', 'linkedin', 'youtube',
+      'tiktok', 'snapchat', 'whatsapp', 'telegram', 'discord'
+    ];
+
+    return socialDomains.any((domain) => from.contains(domain));
+  }
+
+  bool _isUpdateEmail(String subject, String from) {
+    final updateKeywords = [
+      'aggiornamento', 'notifica', 'alert', 'notification', 'update',
+      'invoice', 'fattura', 'receipt', 'ricevuta', 'payment', 'pagamento'
+    ];
+
+    final updateDomains = [
+      'noreply', 'no-reply', 'notification', 'alert', 'update',
+      'billing', 'invoice', 'payment', 'bank', 'finance'
+    ];
+
+    return updateKeywords.any((keyword) => subject.contains(keyword)) ||
+           updateDomains.any((domain) => from.contains(domain));
+  }
+
   String get bodyText {
     return _extractTextFromPart(payload);
   }
 
   String get bodyHtml {
-    return _extractHtmlFromPart(payload);
+    final rawHtml = _extractHtmlFromPart(payload);
+    return _cleanHtml(rawHtml);
   }
 
   bool get hasHtmlContent {
@@ -138,6 +212,47 @@ class GmailMessage {
       print('Base64 decode error: $e');
       return data;
     }
+  }
+
+  String _cleanHtml(String html) {
+    if (html.isEmpty) return html;
+
+    // Strategia semplificata: mantieni le immagini base64 e rimuovi il tracking
+    return html
+        // Rimuovi tracking scripts e beacons
+        .replaceAll(RegExp(r'<script[^>]*>.*?</script>', multiLine: true, caseSensitive: false), '')
+        .replaceAll(RegExp(r'<noscript[^>]*>.*?</noscript>', multiLine: true, caseSensitive: false), '')
+
+        // Rimuovi tracking pixels di dimensioni minime
+        .replaceAll(RegExp(r'<img[^>]*(?:width|height)\s*=\s*["\x27]?0*1["\x27]?[^>]*>', caseSensitive: false), '')
+
+        // Rimuovi link a domini di tracking noti
+        .replaceAll(RegExp(r'<a[^>]*href\s*=\s*["\x27][^"\x27]*(?:click|track|analytics|utm_|pixel|beacon)[^"\x27]*["\x27][^>]*>(.*?)</a>', multiLine: true, caseSensitive: false), r'$1')
+
+        // Pulisci attributi di tracking
+        .replaceAll(RegExp(r'\s+data-(?:track|analytics|pixel)[^=]*=\s*["\x27][^"\x27]*["\x27]', caseSensitive: false), '')
+
+        // Pulisci HTML entities
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+
+        // Rimuovi tag vuoti
+        .replaceAll(RegExp(r'<(\w+)[^>]*>\s*</\1>', caseSensitive: false), '')
+        .trim();
+  }
+
+  bool _isTrackingUrl(String url) {
+    final trackingDomains = [
+      'click.', 'track.', 'analytics.', 'pixel.', 'beacon.',
+      'utm_', 'mailtrack', 'mixpanel', 'amplitude',
+      'justeat', 'takeaway', 'marketing', 'newsletter'
+    ];
+
+    return trackingDomains.any((domain) => url.toLowerCase().contains(domain));
   }
 
   String _stripHtml(String html) {
@@ -279,4 +394,59 @@ class GmailThread {
   GmailMessage? get latestMessage => messages.isNotEmpty ? messages.last : null;
   String get subject => latestMessage?.subject ?? '';
   bool get isUnread => messages.any((m) => m.isUnread);
+}
+
+enum GmailCategory {
+  primary,
+  promotions,
+  social,
+  updates,
+  forums,
+}
+
+extension GmailCategoryExtension on GmailCategory {
+  String get displayName {
+    switch (this) {
+      case GmailCategory.primary:
+        return 'Principale';
+      case GmailCategory.promotions:
+        return 'Promozioni';
+      case GmailCategory.social:
+        return 'Social';
+      case GmailCategory.updates:
+        return 'Aggiornamenti';
+      case GmailCategory.forums:
+        return 'Forum';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case GmailCategory.primary:
+        return Icons.inbox;
+      case GmailCategory.promotions:
+        return Icons.local_offer;
+      case GmailCategory.social:
+        return Icons.people;
+      case GmailCategory.updates:
+        return Icons.info;
+      case GmailCategory.forums:
+        return Icons.forum;
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case GmailCategory.primary:
+        return const Color(0xFF1976D2); // Blue
+      case GmailCategory.promotions:
+        return const Color(0xFFE91E63); // Pink
+      case GmailCategory.social:
+        return const Color(0xFF2196F3); // Light Blue
+      case GmailCategory.updates:
+        return const Color(0xFFFF9800); // Orange
+      case GmailCategory.forums:
+        return const Color(0xFF9C27B0); // Purple
+    }
+  }
 }

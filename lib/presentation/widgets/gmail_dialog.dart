@@ -11,7 +11,22 @@ class GmailDialog extends ConsumerStatefulWidget {
   ConsumerState<GmailDialog> createState() => _GmailDialogState();
 }
 
-class _GmailDialogState extends ConsumerState<GmailDialog> {
+class _GmailDialogState extends ConsumerState<GmailDialog> with TickerProviderStateMixin {
+  late TabController _tabController;
+  late List<GmailCategory> _categories;
+
+  @override
+  void initState() {
+    super.initState();
+    _categories = GmailCategory.values;
+    _tabController = TabController(length: _categories.length, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,10 +58,34 @@ class _GmailDialogState extends ConsumerState<GmailDialog> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+
+            // Tab Bar per le categorie
+            TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: AppColors.textSecondary,
+              indicatorColor: AppColors.primary,
+              tabs: _categories.map((category) => Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(category.icon, size: 16),
+                    const SizedBox(width: 8),
+                    Text(category.displayName),
+                  ],
+                ),
+              )).toList(),
+            ),
+
+            const SizedBox(height: 16),
 
             Expanded(
-              child: _buildEmailList(),
+              child: TabBarView(
+                controller: _tabController,
+                children: _categories.map((category) => _buildEmailListForCategory(category)).toList(),
+              ),
             ),
 
           ],
@@ -55,16 +94,19 @@ class _GmailDialogState extends ConsumerState<GmailDialog> {
     );
   }
 
-  Widget _buildEmailList() {
-    // Show recent emails from inbox
-    return _buildMessagesList(const GmailQuery(type: GmailQueryType.inbox, maxResults: 50));
+  Widget _buildEmailListForCategory(GmailCategory category) {
+    // Carichiamo sempre tutte le email dall'inbox e filtriamo per categoria
+    return _buildMessagesList(const GmailQuery(type: GmailQueryType.inbox, maxResults: 100), category);
   }
 
-  Widget _buildMessagesList(GmailQuery query) {
+  Widget _buildMessagesList(GmailQuery query, GmailCategory category) {
     final messagesAsync = ref.watch(gmailMessagesProvider(query));
 
     return messagesAsync.when(
-      data: (messages) {
+      data: (allMessages) {
+        // Filtriamo le email per categoria
+        final messages = allMessages.where((message) => message.category == category).toList();
+
         if (messages.isEmpty) {
           return Center(
             child: Column(
@@ -72,9 +114,9 @@ class _GmailDialogState extends ConsumerState<GmailDialog> {
               children: [
                 const Icon(Icons.mail_outline, size: 64, color: AppColors.iconSecondary),
                 const SizedBox(height: 16),
-                const Text(
-                  'Nessun messaggio trovato',
-                  style: TextStyle(
+                Text(
+                  'Nessun messaggio in ${category.displayName}',
+                  style: const TextStyle(
                     fontSize: 16,
                     color: AppColors.textSecondary,
                   ),
