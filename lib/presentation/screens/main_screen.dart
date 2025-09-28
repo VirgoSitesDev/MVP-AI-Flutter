@@ -118,11 +118,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                             Expanded(
                               child: Row(
                                 children: [
-                                  // Sidebar keeps same width (280px)
-                                  SizedBox(
-                                    width: 280,
-                                    child: _buildLeftSidebar(),
-                                  ),
+                                  // Sidebar keeps original width (320px)
+                                  _buildLeftSidebar(),
                                   // Chat area gets compressed
                                   Expanded(
                                     child: _buildChatArea(chatSession, messageState),
