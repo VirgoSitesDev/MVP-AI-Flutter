@@ -47,6 +47,18 @@ class GmailMessage {
     final subjectHeaders = payload.headers
         .where((h) => h.name.toLowerCase() == 'subject')
         .map((h) => h.value);
+
+    // Debug logging
+    print('🔍 Subject Debug for message ${id}:');
+    print('📄 Total headers: ${payload.headers.length}');
+    print('📋 Header names: ${payload.headers.map((h) => h.name).join(', ')}');
+    print('📝 Subject headers found: ${subjectHeaders.length}');
+    if (subjectHeaders.isNotEmpty) {
+      print('✅ Subject value: "${subjectHeaders.first}"');
+    } else {
+      print('❌ No subject header found');
+    }
+
     return subjectHeaders.isNotEmpty ? subjectHeaders.first : '';
   }
 
@@ -140,13 +152,23 @@ class GmailPayload {
 
   factory GmailPayload.fromJson(Map<String, dynamic> json) {
     try {
+      final headers = (json['headers'] as List?)
+          ?.map((h) => GmailHeader.fromJson(h is Map<String, dynamic> ? h : {}))
+          .toList() ?? [];
+
+      // Debug logging for headers
+      print('🔧 Payload Debug: Headers count = ${headers.length}');
+      for (final header in headers) {
+        if (header.name.toLowerCase() == 'subject') {
+          print('📧 Found Subject header: "${header.value}"');
+        }
+      }
+
       return GmailPayload(
         partId: json['partId']?.toString() ?? '',
         mimeType: json['mimeType']?.toString() ?? '',
         filename: json['filename']?.toString() ?? '',
-        headers: (json['headers'] as List?)
-            ?.map((h) => GmailHeader.fromJson(h is Map<String, dynamic> ? h : {}))
-            .toList() ?? [],
+        headers: headers,
         body: GmailBody.fromJson((json['body'] is Map<String, dynamic>) ? json['body'] : {}),
         parts: (json['parts'] as List?)
             ?.map((p) => GmailPayload.fromJson(p is Map<String, dynamic> ? p : {}))
