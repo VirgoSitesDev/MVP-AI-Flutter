@@ -27,6 +27,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   bool _isPersonalPinsExpanded = true;
   bool _isOrgPinsExpanded = true;
   bool _isUtilitiesExpanded = false;
+  bool _isPreviewFullscreen = false; // New state for fullscreen mode
 
   DriveFile? _selectedFileForPreview;
   String? _previewContent;
@@ -105,27 +106,61 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           
           // Contenuto principale
           Expanded(
-            child: Row(
-              children: [
-                // Sidebar sinistra
-                _buildLeftSidebar(),
-
-                // Area principale destra (Smart Preview + Chat)
-                Expanded(
-                  child: Column(
+            child: _isPreviewFullscreen
+                ? Row(
                     children: [
-                      // Smart Preview Window in alto
-                      _buildSmartPreviewWindow(),
-
-                      // Area chat in basso
+                      // In fullscreen mode: left side has sidebar + chat
                       Expanded(
-                        child: _buildChatArea(chatSession, messageState),
+                        flex: 5,
+                        child: Column(
+                          children: [
+                            // Sidebar and chat area compressed
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  // Smaller sidebar
+                                  SizedBox(
+                                    width: 240,
+                                    child: _buildLeftSidebar(),
+                                  ),
+                                  // Chat area
+                                  Expanded(
+                                    child: _buildChatArea(chatSession, messageState),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Right side: Fullscreen Smart Preview
+                      Expanded(
+                        flex: 7,
+                        child: _buildSmartPreviewWindow(),
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      // Normal mode: sidebar on left
+                      _buildLeftSidebar(),
+
+                      // Area principale destra (Smart Preview + Chat)
+                      Expanded(
+                        child: Column(
+                          children: [
+                            // Smart Preview Window in alto
+                            _buildSmartPreviewWindow(),
+
+                            // Area chat in basso
+                            Expanded(
+                              child: _buildChatArea(chatSession, messageState),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
           ),
         ],
       ),
@@ -546,13 +581,19 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     Widget _buildSmartPreviewWindow() {
       final selectedFiles = ref.watch(selectedDriveFilesProvider);
 
-      return Container(
-        height: 250, // Fixed height for top section
-        decoration: const BoxDecoration(
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        height: _isPreviewFullscreen ? double.infinity : 250, // Dynamic height
+        decoration: BoxDecoration(
           color: AppColors.previewBackground,
-          border: Border(
-            bottom: BorderSide(color: AppColors.previewBorder, width: 1),
-          ),
+          border: _isPreviewFullscreen
+              ? const Border(
+                  left: BorderSide(color: AppColors.previewBorder, width: 1),
+                )
+              : const Border(
+                  bottom: BorderSide(color: AppColors.previewBorder, width: 1),
+                ),
         ),
         child: Column(
           children: [
@@ -598,6 +639,47 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         ),
                       ),
                     ),
+                  const SizedBox(width: 12),
+                  // Fullscreen toggle button
+                  Tooltip(
+                    message: _isPreviewFullscreen
+                        ? 'Esci dalla modalità schermo intero'
+                        : 'Modalità schermo intero',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          setState(() {
+                            _isPreviewFullscreen = !_isPreviewFullscreen;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.all(8.0),
+                          decoration: BoxDecoration(
+                            color: _isPreviewFullscreen
+                                ? AppColors.primary.withOpacity(0.1)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _isPreviewFullscreen
+                                  ? AppColors.primary.withOpacity(0.3)
+                                  : Colors.transparent,
+                            ),
+                          ),
+                          child: Icon(
+                            _isPreviewFullscreen
+                                ? Icons.close_fullscreen
+                                : Icons.open_in_full,
+                            size: 20,
+                            color: _isPreviewFullscreen
+                                ? AppColors.primary
+                                : AppColors.iconPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
