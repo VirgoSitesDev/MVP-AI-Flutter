@@ -2078,7 +2078,7 @@ Widget _buildGoogleConnectionSection() {
               ],
             ),
           ),
-          if (emails.length > 1) ..[
+          if (emails.length > 1) ...[
             Container(
               height: 32,
               decoration: BoxDecoration(
