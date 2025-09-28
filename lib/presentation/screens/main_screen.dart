@@ -750,11 +750,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       // Se nessun file è selezionato per preview, usa il primo della lista
       final fileToPreview = _selectedFileForPreview ?? selectedFiles.first;
 
-      print('🔍 _buildPreviewArea - File selezionati: ${selectedFiles.length}');
-      print('🔍 File per preview: ${fileToPreview.name}');
-      print('🔍 _selectedFileForPreview: ${_selectedFileForPreview?.name}');
-      print('🔍 _previewContent != null: ${_previewContent != null}');
-      print('🔍 _isLoadingPreview: $_isLoadingPreview');
 
       // Load content on first display or when file changes
       if (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id) {
@@ -779,9 +774,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     Widget _buildFilePreviewSimple(DriveFile file) {
-      print('🖼️ _buildFilePreviewSimple - Rendering for: ${file.name}');
-      print('🖼️ _isLoadingPreview: $_isLoadingPreview');
-      print('🖼️ _previewContent length: ${_previewContent?.length ?? 0}');
 
       return Container(
         color: Colors.white,
@@ -926,16 +918,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
 
-    // Old method - not used anymore, replaced by _buildFilePreviewSimple
-    /*
-    Widget _buildFilePreview(DriveFile file) {
-      // ... old implementation ...
-    }
-    */
 
     Future<void> _loadFileContent(DriveFile file) async {
-      print('🔄 Inizio caricamento contenuto per file: ${file.name} (ID: ${file.id})');
-
       // Imposta immediatamente il file selezionato per evitare chiamate multiple
       _selectedFileForPreview = file;
 
@@ -948,21 +932,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       }
 
       try {
-        print('📄 Chiamata a extractStructuredContent per: ${file.name}');
         final structuredContent = await _contentExtractor.extractStructuredContent(file);
-        print('✅ Contenuto strutturato estratto, tipo: ${structuredContent.type}');
 
         if (mounted) {
           setState(() {
             _structuredPreviewContent = structuredContent;
             _isLoadingPreview = false;
           });
-          print('✅ UI aggiornata con il contenuto strutturato');
         }
       } catch (e, stackTrace) {
-        print('❌ Errore nel caricamento del contenuto: $e');
-        print('📍 Stack trace: $stackTrace');
-
         if (mounted) {
           setState(() {
             _previewContent = 'Errore nel caricamento del contenuto:\n\n${e.toString()}\n\nDettagli:\n- File: ${file.name}\n- ID: ${file.id}\n- Tipo: ${file.mimeType}';
@@ -1042,8 +1020,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                       ),
                     ),
                   )).toList(),
-                  rows: tableData.take(100).map((row) { // Limit to 100 rows for performance
-                    // Ensure row has same number of cells as headers
+                  rows: tableData.take(100).map((row) {
                     final adjustedRow = List<String>.filled(headers.length, '');
                     for (int i = 0; i < row.length && i < headers.length; i++) {
                       adjustedRow[i] = row[i];
@@ -1274,7 +1251,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     controller: _messageController,
                     focusNode: _messageFocusNode,
                     enabled: messageState is! AppMessageStateSending,
-                    maxLines: null,
+                    maxLines: 1,
+                    textInputAction: TextInputAction.send,
                     decoration: const InputDecoration(
                       hintText: 'Chiedimi qualsiasi cosa',
                       border: InputBorder.none,

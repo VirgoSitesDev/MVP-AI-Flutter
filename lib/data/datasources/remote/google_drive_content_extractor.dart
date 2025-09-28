@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:excel/excel.dart' as excel_lib; // Import della libreria Excel
 import 'google_drive_service.dart';
 
-/// Classe per rappresentare contenuto strutturato (come tabelle)
 class StructuredContent {
   final String type; // 'text', 'table'
   final String? text;
@@ -25,21 +24,15 @@ class StructuredContent {
   bool get isText => type == 'text';
 }
 
-/// Classe per estrarre il contenuto testuale dai file di Google Drive
 class GoogleDriveContentExtractor {
   final GoogleDriveService _driveService = GoogleDriveService();
   
-  /// Limiti per evitare di scaricare file troppo grandi
-  static const int maxFileSizeBytes = 10 * 1024 * 1024; // 10MB
-  static const int maxTextLength = 100000; // 100k caratteri
-  static const int maxExcelRows = 1000; // Limite righe Excel da processare
+  static const int maxFileSizeBytes = 10 * 1024 * 1024;
+  static const int maxTextLength = 100000;
+  static const int maxExcelRows = 1000;
   
-  /// Estrae il contenuto strutturato da un file Drive
   Future<StructuredContent> extractStructuredContent(DriveFile file) async {
     try {
-      if (kDebugMode) {
-        print('📄 Estrazione contenuto strutturato da: ${file.name}');
-      }
 
       // Per file Google Workspace, usa l'export
       if (file.mimeType?.startsWith('application/vnd.google-apps') ?? false) {
@@ -63,9 +56,6 @@ class GoogleDriveContentExtractor {
           );
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Errore estrazione contenuto strutturato: $e');
-      }
       return StructuredContent(
         type: 'text',
         text: _getFileMetadata(file, reason: 'Errore: ${e.toString()}'),
@@ -74,12 +64,8 @@ class GoogleDriveContentExtractor {
     }
   }
 
-  /// Estrae il contenuto testuale da un file Drive (metodo originale)
   Future<String> extractContent(DriveFile file) async {
     try {
-      if (kDebugMode) {
-        print('📄 Estrazione contenuto da: ${file.name}');
-      }
       
       // Per file Google Workspace, usa l'export
       if (file.mimeType?.startsWith('application/vnd.google-apps') ?? false) {
@@ -118,18 +104,12 @@ class GoogleDriveContentExtractor {
           return _getFileMetadata(file);
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Errore estrazione contenuto: $e');
-      }
       return _getFileMetadata(file, reason: 'Errore: ${e.toString()}');
     }
   }
   
   Future<String> _extractExcelContent(DriveFile file) async {
     try {
-      if (kDebugMode) {
-        print('📊 Estrazione contenuto Excel: ${file.name}');
-      }
       
       // Scarica il file
       final bytes = await _driveService.downloadFile(file.id);
@@ -137,9 +117,6 @@ class GoogleDriveContentExtractor {
         return _getFileMetadata(file, reason: 'File Excel vuoto o non accessibile');
       }
       
-      if (kDebugMode) {
-        print('📊 File Excel scaricato: ${bytes.length} bytes');
-      }
       
       // Decodifica il file Excel
       final excel = excel_lib.Excel.decodeBytes(Uint8List.fromList(bytes));
@@ -250,7 +227,6 @@ class GoogleDriveContentExtractor {
       
       final content = buffer.toString();
       
-      // Tronca se troppo lungo
       if (content.length > maxTextLength) {
         return content.substring(0, maxTextLength) + '\n\n[... contenuto Excel troncato ...]';
       }
@@ -258,36 +234,25 @@ class GoogleDriveContentExtractor {
       return content;
       
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Errore lettura Excel: $e');
-      }
       
       return _getExcelErrorMessage(file, e.toString());
     }
   }
   
-  /// Formatta il valore di una cella Excel in modo intelligente
   String _formatCellValue(dynamic cellValue) {
     if (cellValue == null) return '';
     
-    // CellValue nella libreria excel è un wrapper
-    // Dobbiamo estrarre il valore reale usando toString()
     String valueStr = cellValue.toString();
     
-    // Prova a migliorare la formattazione per numeri
-    // Rimuovi .0 dai numeri interi
     if (valueStr.endsWith('.0')) {
       final withoutDecimal = valueStr.substring(0, valueStr.length - 2);
-      // Verifica che sia effettivamente un numero
       if (int.tryParse(withoutDecimal) != null) {
         return withoutDecimal;
       }
     }
     
-    // Formatta numeri molto grandi con separatori (opzionale)
     final numValue = num.tryParse(valueStr);
     if (numValue != null && numValue >= 1000) {
-      // Aggiungi separatore migliaia per leggibilità
       if (numValue == numValue.toInt()) {
         return _formatWithThousands(numValue.toInt());
       }
@@ -296,7 +261,6 @@ class GoogleDriveContentExtractor {
     return valueStr;
   }
   
-  /// Formatta numero con separatore migliaia
   String _formatWithThousands(int number) {
     String result = number.toString();
     String formatted = '';
@@ -314,7 +278,6 @@ class GoogleDriveContentExtractor {
     return formatted;
   }
   
-  /// Messaggio di errore formattato per Excel
   String _getExcelErrorMessage(DriveFile file, String error) {
     return """
 📊 ${file.name}
@@ -373,25 +336,17 @@ Link al file: ${file.webViewLink ?? 'N/A'}
           return _getFileMetadata(file);
       }
       
-      if (kDebugMode) {
-        print('📤 Esportazione $fileType come $exportMimeType...');
-      }
       
-      // Scarica effettivamente il contenuto
       final bytes = await _driveService.exportGoogleFile(file.id, file.mimeType!);
       
       if (bytes == null || bytes.isEmpty) {
         return _getFileMetadata(file);
       }
       
-      // Converti in testo
       String content;
       try {
         content = utf8.decode(bytes, allowMalformed: true);
       } catch (e) {
-        if (kDebugMode) {
-          print('⚠️ File non testuale, usando metadata');
-        }
         return _getFileMetadata(file);
       }
       
@@ -400,7 +355,6 @@ Link al file: ${file.webViewLink ?? 'N/A'}
         content = _formatCsvContent(content, file.name);
       }
       
-      // Tronca se troppo lungo
       if (content.length > maxTextLength) {
         content = content.substring(0, maxTextLength) + '\n\n[... contenuto troncato ...]';
       }
@@ -418,9 +372,6 @@ $content
 Fine del file: ${file.name}
 """;
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Errore export Google Workspace: $e');
-      }
       return _getFileMetadata(file);
     }
   }
@@ -452,11 +403,7 @@ Fine del file: ${file.name}
           );
       }
 
-      if (kDebugMode) {
-        print('📤 Esportazione $fileType come $exportMimeType...');
-      }
 
-      // Scarica effettivamente il contenuto
       final bytes = await _driveService.exportGoogleFile(file.id, file.mimeType!);
 
       if (bytes == null || bytes.isEmpty) {
@@ -467,14 +414,10 @@ Fine del file: ${file.name}
         );
       }
 
-      // Converti in testo
       String content;
       try {
         content = utf8.decode(bytes, allowMalformed: true);
       } catch (e) {
-        if (kDebugMode) {
-          print('⚠️ File non testuale, usando metadata');
-        }
         return StructuredContent(
           type: 'text',
           text: _getFileMetadata(file),
@@ -487,7 +430,6 @@ Fine del file: ${file.name}
         return _parseCSVToStructuredContent(content, file.name);
       }
 
-      // Tronca se troppo lungo
       if (content.length > maxTextLength) {
         content = content.substring(0, maxTextLength) + '\n\n[... contenuto troncato ...]';
       }
@@ -498,9 +440,6 @@ Fine del file: ${file.name}
         title: file.name,
       );
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Errore export Google Workspace: $e');
-      }
       return StructuredContent(
         type: 'text',
         text: _getFileMetadata(file),
@@ -509,7 +448,6 @@ Fine del file: ${file.name}
     }
   }
 
-  /// Estrae contenuto strutturato da file Excel
   Future<StructuredContent> _extractExcelStructuredContent(DriveFile file) async {
     try {
       final bytes = await _driveService.downloadFile(file.id);
@@ -531,7 +469,6 @@ Fine del file: ${file.name}
         );
       }
 
-      // Usa il primo foglio per la tabella
       final firstSheet = excel.tables.values.first;
       if (firstSheet == null || firstSheet.rows.isEmpty) {
         return StructuredContent(
@@ -550,7 +487,6 @@ Fine del file: ${file.name}
           cell?.value != null ? _formatCellValue(cell!.value) : ''
         ).toList();
 
-        // Skip empty rows
         if (rowData.every((cell) => cell.isEmpty)) continue;
 
         if (headers == null) {
@@ -575,7 +511,6 @@ Fine del file: ${file.name}
     }
   }
 
-  /// Converte CSV in contenuto strutturato
   StructuredContent _parseCSVToStructuredContent(String csvContent, String fileName) {
     try {
       final lines = csvContent.split('\n')
@@ -619,7 +554,6 @@ Fine del file: ${file.name}
     }
   }
 
-  /// Parsing semplice di una riga CSV
   List<String> _parseCSVLine(String line) {
     final result = <String>[];
     bool inQuotes = false;
@@ -642,7 +576,6 @@ Fine del file: ${file.name}
     return result;
   }
 
-  /// Formatta contenuto CSV per migliore leggibilità (metodo originale - mantenuto per compatibilità)
   String _formatCsvContent(String csvContent, String fileName) {
     try {
       final lines = csvContent.split('\n');
@@ -651,13 +584,11 @@ Fine del file: ${file.name}
       final buffer = StringBuffer();
       buffer.writeln('Dati CSV da: $fileName\n');
       
-      // Prima riga come header
       if (lines.isNotEmpty) {
         buffer.writeln('COLONNE: ${lines[0]}');
         buffer.writeln('-' * 50);
       }
       
-      // Dati
       for (int i = 1; i < lines.length && i <= maxExcelRows; i++) {
         if (lines[i].trim().isNotEmpty) {
           buffer.writeln('Riga $i: ${lines[i]}');
@@ -670,13 +601,12 @@ Fine del file: ${file.name}
       
       return buffer.toString();
     } catch (e) {
-      return csvContent; // Ritorna originale se formattazione fallisce
+      return csvContent;
     }
   }
   
   // ... resto dei metodi esistenti ...
   
-  /// Estrae contenuto da file di testo normale
   Future<String> _extractTextContent(DriveFile file) async {
     try {
       final bytes = await _driveService.downloadFile(file.id);
