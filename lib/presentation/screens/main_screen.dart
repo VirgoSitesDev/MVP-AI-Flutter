@@ -111,19 +111,19 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     children: [
                       // In fullscreen mode: left side has sidebar + chat
                       Expanded(
-                        flex: 5,
+                        flex: 7,
                         child: Column(
                           children: [
                             // Sidebar and chat area compressed
                             Expanded(
                               child: Row(
                                 children: [
-                                  // Smaller sidebar
+                                  // Sidebar keeps same width (280px)
                                   SizedBox(
-                                    width: 240,
+                                    width: 280,
                                     child: _buildLeftSidebar(),
                                   ),
-                                  // Chat area
+                                  // Chat area gets compressed
                                   Expanded(
                                     child: _buildChatArea(chatSession, messageState),
                                   ),
@@ -133,9 +133,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                           ],
                         ),
                       ),
-                      // Right side: Fullscreen Smart Preview
+                      // Right side: Smart Preview (smaller than before)
                       Expanded(
-                        flex: 7,
+                        flex: 5,
                         child: _buildSmartPreviewWindow(),
                       ),
                     ],
