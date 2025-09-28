@@ -623,7 +623,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     ),
                   ),
                   const Spacer(),
-                  if (selectedFiles.isNotEmpty)
+                  if (selectedFiles.isNotEmpty) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -639,8 +639,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         ),
                       ),
                     ),
-                  const SizedBox(width: 12),
-                  // Fullscreen toggle button
+                    const SizedBox(width: 12),
+                  ],
+                  // Fullscreen toggle button - always visible
                   Tooltip(
                     message: _isPreviewFullscreen
                         ? 'Esci dalla modalità schermo intero'
