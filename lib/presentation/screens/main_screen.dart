@@ -705,31 +705,31 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     Widget _buildPreviewArea(List<DriveFile> selectedFiles, List<GmailMessage> selectedEmails) {
-      if (_selectedFileForPreview != null &&
-          !selectedFiles.any((file) => file.id == _selectedFileForPreview!.id)) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            setState(() {
-              _selectedFileForPreview = null;
-              _previewContent = null;
-              _structuredPreviewContent = null;
-              _isLoadingPreview = false;
-            });
-          }
-        });
-      }
-
-      final fileToPreview = _selectedFileForPreview ?? selectedFiles.first;
-
-      if (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id)) {
-            _loadFileContent(fileToPreview);
-          }
-        });
-      }
-
       if (selectedFiles.isNotEmpty) {
+        if (_selectedFileForPreview != null &&
+            !selectedFiles.any((file) => file.id == _selectedFileForPreview!.id)) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _selectedFileForPreview = null;
+                _previewContent = null;
+                _structuredPreviewContent = null;
+                _isLoadingPreview = false;
+              });
+            }
+          });
+        }
+
+        final fileToPreview = _selectedFileForPreview ?? selectedFiles.first;
+
+        if (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted && (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id)) {
+              _loadFileContent(fileToPreview);
+            }
+          });
+        }
+
         return Column(
           children: [
             _buildCompactFileSelector(selectedFiles, fileToPreview),
