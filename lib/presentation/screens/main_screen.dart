@@ -623,13 +623,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     print('🔍 _previewContent != null: ${_previewContent != null}');
                     print('🔍 _isLoadingPreview: $_isLoadingPreview');
 
-                    // Se è la prima volta che mostriamo un file, carica il contenuto
-                    if (_selectedFileForPreview == null && _previewContent == null && !_isLoadingPreview) {
-                      print('🚀 Avvio caricamento automatico del primo file');
-                      _selectedFileForPreview = fileToPreview;
-                      _loadFileContent(fileToPreview);
-                    }
-
                     return Column(
                       children: [
                         // File selector compatto in alto
@@ -798,12 +791,22 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       print('🎨 _buildFilePreview chiamato per: ${file.name}');
       print('🎨 _isLoadingPreview: $_isLoadingPreview');
       print('🎨 _previewContent != null: ${_previewContent != null}');
+      print('🎨 _selectedFileForPreview?.id: ${_selectedFileForPreview?.id}');
+      print('🎨 file.id: ${file.id}');
 
-      // Se il file è cambiato o non abbiamo ancora contenuto, carica il nuovo contenuto
-      if (_selectedFileForPreview?.id != file.id || (_previewContent == null && !_isLoadingPreview)) {
-        print('🔄 File cambiato o contenuto mancante, carico il contenuto');
-        _selectedFileForPreview = file;
+      // Se il file è cambiato, carica il nuovo contenuto
+      if (_selectedFileForPreview?.id != file.id) {
+        print('🔄 File cambiato, carico il contenuto per: ${file.name}');
+        // NON aggiorniamo _selectedFileForPreview qui perché verrà fatto in _loadFileContent
         // Usa un callback post-frame per evitare setState durante il build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_selectedFileForPreview?.id != file.id) { // Double check to avoid multiple calls
+            _loadFileContent(file);
+          }
+        });
+      } else if (_selectedFileForPreview?.id == file.id && _previewContent == null && !_isLoadingPreview) {
+        // Se è lo stesso file ma non abbiamo contenuto e non stiamo caricando
+        print('🔄 Stesso file ma contenuto mancante, ricarico');
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _loadFileContent(file);
         });
@@ -847,6 +850,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
     Future<void> _loadFileContent(DriveFile file) async {
       print('🔄 Inizio caricamento contenuto per file: ${file.name} (ID: ${file.id})');
+
+      // Imposta immediatamente il file selezionato per evitare chiamate multiple
+      _selectedFileForPreview = file;
 
       if (mounted) {
         setState(() {
