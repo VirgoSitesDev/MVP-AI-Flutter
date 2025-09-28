@@ -109,7 +109,26 @@ class GmailService {
         format: 'full',
       );
 
-      final gmailMessage = GmailMessage.fromJson(message.toJson());
+      // Debug: log the raw JSON structure
+      final jsonData = message.toJson();
+      print('🔍 RAW JSON keys: ${jsonData.keys.toList()}');
+      if (jsonData.containsKey('payload')) {
+        final payload = jsonData['payload'] as Map<String, dynamic>?;
+        print('📦 Payload keys: ${payload?.keys.toList() ?? 'null'}');
+        if (payload != null && payload.containsKey('headers')) {
+          final headers = payload['headers'] as List?;
+          print('📋 Headers count in JSON: ${headers?.length ?? 0}');
+          if (headers != null && headers.isNotEmpty) {
+            print('📝 First few headers: ${headers.take(3).toList()}');
+          }
+        } else {
+          print('❌ No headers key in payload');
+        }
+      } else {
+        print('❌ No payload key in JSON');
+      }
+
+      final gmailMessage = GmailMessage.fromJson(jsonData);
       print('✅ Gmail Service: Messaggio $messageId caricato - From: ${gmailMessage.from}, Subject: ${gmailMessage.subject}');
       return gmailMessage;
     } catch (e) {
