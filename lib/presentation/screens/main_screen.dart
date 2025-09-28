@@ -544,6 +544,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     Widget _buildSmartPreviewWindow() {
+      final selectedFiles = ref.watch(selectedDriveFilesProvider);
+
       return Container(
         height: 250, // Fixed height for top section
         decoration: const BoxDecoration(
@@ -580,63 +582,31 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     ),
                   ),
                   const Spacer(),
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final selectedFiles = ref.watch(selectedDriveFilesProvider);
-                      if (selectedFiles.isNotEmpty) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '${selectedFiles.length} file',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
-                  ),
+                  if (selectedFiles.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${selectedFiles.length} file',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
 
             // Content area
             Expanded(
-              child: Consumer(
-                builder: (context, ref, _) {
-                  final selectedFiles = ref.watch(selectedDriveFilesProvider);
-
-                  if (selectedFiles.isNotEmpty) {
-                    // Se nessun file è selezionato per preview, usa il primo della lista
-                    final fileToPreview = _selectedFileForPreview ?? selectedFiles.first;
-
-                    print('🔍 File selezionati: ${selectedFiles.length}');
-                    print('🔍 File per preview: ${fileToPreview.name}');
-                    print('🔍 _selectedFileForPreview: ${_selectedFileForPreview?.name}');
-                    print('🔍 _previewContent != null: ${_previewContent != null}');
-                    print('🔍 _isLoadingPreview: $_isLoadingPreview');
-
-                    return Column(
-                      children: [
-                        // File selector compatto in alto
-                        _buildCompactFileSelector(selectedFiles, fileToPreview),
-                        const Divider(height: 1, color: AppColors.divider),
-                        // Anteprima del documento selezionato
-                        Expanded(
-                          child: _buildFilePreview(fileToPreview),
-                        ),
-                      ],
-                    );
-                  } else {
-                    // Nessun contenuto
-                    return const Center(
+              child: selectedFiles.isNotEmpty
+                  ? _buildPreviewArea(selectedFiles)
+                  : const Center(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -670,10 +640,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                           ),
                         ],
                       ),
-                    );
-                  }
-                },
-              ),
+                    ),
             ),
           ],
         ),
@@ -681,6 +648,79 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     // Aggiungi questi metodi helper:
+
+    Widget _buildPreviewArea(List<DriveFile> selectedFiles) {
+      // Se nessun file è selezionato per preview, usa il primo della lista
+      final fileToPreview = _selectedFileForPreview ?? selectedFiles.first;
+
+      print('🔍 _buildPreviewArea - File selezionati: ${selectedFiles.length}');
+      print('🔍 File per preview: ${fileToPreview.name}');
+      print('🔍 _selectedFileForPreview: ${_selectedFileForPreview?.name}');
+      print('🔍 _previewContent != null: ${_previewContent != null}');
+      print('🔍 _isLoadingPreview: $_isLoadingPreview');
+
+      // Load content on first display
+      if (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id)) {
+            _loadFileContent(fileToPreview);
+          }
+        });
+      }
+
+      return Column(
+        children: [
+          // File selector compatto in alto
+          _buildCompactFileSelector(selectedFiles, fileToPreview),
+          const Divider(height: 1, color: AppColors.divider),
+          // Anteprima del documento selezionato
+          Expanded(
+            child: _buildFilePreviewSimple(fileToPreview),
+          ),
+        ],
+      );
+    }
+
+    Widget _buildFilePreviewSimple(DriveFile file) {
+      print('🖼️ _buildFilePreviewSimple - Rendering for: ${file.name}');
+      print('🖼️ _isLoadingPreview: $_isLoadingPreview');
+      print('🖼️ _previewContent length: ${_previewContent?.length ?? 0}');
+
+      return Container(
+        color: Colors.white,
+        child: _isLoadingPreview
+            ? const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text(
+                      'Caricamento anteprima...',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : _previewContent != null && _previewContent!.isNotEmpty
+                ? SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: SelectableText(
+                      _previewContent!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textPrimary,
+                        fontFamily: 'monospace',
+                        height: 1.5,
+                      ),
+                    ),
+                  )
+                : _buildPreviewContent(file),
+      );
+    }
 
     Widget _buildCompactFileSelector(List<DriveFile> files, DriveFile currentFile) {
       return Container(
@@ -787,66 +827,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
 
+    // Old method - not used anymore, replaced by _buildFilePreviewSimple
+    /*
     Widget _buildFilePreview(DriveFile file) {
-      print('🎨 _buildFilePreview chiamato per: ${file.name}');
-      print('🎨 _isLoadingPreview: $_isLoadingPreview');
-      print('🎨 _previewContent != null: ${_previewContent != null}');
-      print('🎨 _selectedFileForPreview?.id: ${_selectedFileForPreview?.id}');
-      print('🎨 file.id: ${file.id}');
-
-      // Se il file è cambiato, carica il nuovo contenuto
-      if (_selectedFileForPreview?.id != file.id) {
-        print('🔄 File cambiato, carico il contenuto per: ${file.name}');
-        // NON aggiorniamo _selectedFileForPreview qui perché verrà fatto in _loadFileContent
-        // Usa un callback post-frame per evitare setState durante il build
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_selectedFileForPreview?.id != file.id) { // Double check to avoid multiple calls
-            _loadFileContent(file);
-          }
-        });
-      } else if (_selectedFileForPreview?.id == file.id && _previewContent == null && !_isLoadingPreview) {
-        // Se è lo stesso file ma non abbiamo contenuto e non stiamo caricando
-        print('🔄 Stesso file ma contenuto mancante, ricarico');
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _loadFileContent(file);
-        });
-      }
-
-      return Container(
-        color: Colors.white,
-        child: _isLoadingPreview
-            ? const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text(
-                      'Caricamento anteprima...',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            : _previewContent != null
-                ? SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: SelectableText(
-                      _previewContent!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textPrimary,
-                        fontFamily: 'monospace',
-                        height: 1.5,
-                      ),
-                    ),
-                  )
-                : _buildPreviewContent(file),
-      );
+      // ... old implementation ...
     }
+    */
 
     Future<void> _loadFileContent(DriveFile file) async {
       print('🔄 Inizio caricamento contenuto per file: ${file.name} (ID: ${file.id})');
