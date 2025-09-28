@@ -12,6 +12,7 @@ import '../../data/datasources/remote/google_drive_service.dart';
 import '../../data/datasources/remote/google_drive_content_extractor.dart';
 import '../providers/google_drive_provider.dart';
 import '../widgets/google_drive_dialog.dart';
+import '../widgets/gmail_dialog.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -419,124 +420,126 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Riferimenti Permanenti',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.textTertiary,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Divider(height: 1, color: AppColors.divider),
-                    const SizedBox(height: 8),
-
-                    _buildGoogleConnectionSection(),
-
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFAFBFC),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: AppColors.outline,
-                          width: 1,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Riferimenti Permanenti',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.textTertiary,
+                          letterSpacing: 0.3,
                         ),
                       ),
-                      child: _buildExpandableSection(
-                        icon: Icons.person_outline,
-                        title: 'Le tue conversazioni',
-                        isExpanded: _isPersonalPinsExpanded,
-                        onToggle: () => setState(() => _isPersonalPinsExpanded = !_isPersonalPinsExpanded),
-                        children: chatSessionsAsync.when(
-                          data: (sessions) {
-                            if (sessions.isEmpty) {
-                              return [
-                                const Padding(
-                                  padding: EdgeInsets.all(8.0),
-                                  child: Text(
-                                    'Nessuna conversazione salvata',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.textTertiary,
-                                      fontStyle: FontStyle.italic,
+                      const SizedBox(height: 12),
+                      const Divider(height: 1, color: AppColors.divider),
+                      const SizedBox(height: 8),
+
+                      _buildGoogleConnectionSection(),
+
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFAFBFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppColors.outline,
+                            width: 1,
+                          ),
+                        ),
+                        child: _buildExpandableSection(
+                          icon: Icons.person_outline,
+                          title: 'Le tue conversazioni',
+                          isExpanded: _isPersonalPinsExpanded,
+                          onToggle: () => setState(() => _isPersonalPinsExpanded = !_isPersonalPinsExpanded),
+                          children: chatSessionsAsync.when(
+                            data: (sessions) {
+                              if (sessions.isEmpty) {
+                                return [
+                                  const Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: Text(
+                                      'Nessuna conversazione salvata',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textTertiary,
+                                        fontStyle: FontStyle.italic,
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ];
-                            }
-                            return sessions.map((session) => _buildChatItem(
-                              session: session,
-                              isActive: currentSession?.id == session.id,
-                            )).toList();
-                          },
-                          loading: () => [
-                            const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                ),
-                              ),
-                            ),
-                          ],
-                          error: (error, _) => [
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text(
-                                'Errore nel caricamento',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.error,
+                                ];
+                              }
+                              return sessions.map((session) => _buildChatItem(
+                                session: session,
+                                isActive: currentSession?.id == session.id,
+                              )).toList();
+                            },
+                            loading: () => [
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                            error: (error, _) => [
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                  'Errore nel caricamento',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.error,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
 
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFAFBFC),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: AppColors.outline,
-                          width: 1,
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFAFBFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppColors.outline,
+                            width: 1,
+                          ),
+                        ),
+                        child: _buildExpandableSection(
+                          icon: Icons.business_outlined,
+                          title: 'Pin della tua organizzazione',
+                          isExpanded: _isOrgPinsExpanded,
+                          onToggle: () => setState(() => _isOrgPinsExpanded = !_isOrgPinsExpanded),
+                          children: [],
                         ),
                       ),
-                      child: _buildExpandableSection(
-                        icon: Icons.business_outlined,
-                        title: 'Pin della tua organizzazione',
-                        isExpanded: _isOrgPinsExpanded,
-                        onToggle: () => setState(() => _isOrgPinsExpanded = !_isOrgPinsExpanded),
-                        children: [],
-                      ),
-                    ),
-                    
-                    const Spacer(),
 
-                    _buildExpandableSection(
-                      icon: Icons.lightbulb_outline,
-                      title: 'Scopri le funzionalità',
-                      isExpanded: _isUtilitiesExpanded,
-                      onToggle: () => setState(() => _isUtilitiesExpanded = !_isUtilitiesExpanded),
-                      children: [
-                        _buildUtilityItem(Icons.add_comment, 'Nuova conversazione'),
-                        _buildUtilityItem(Icons.article_outlined, 'Riassunto sessione'),
-                        _buildUtilityItem(Icons.close, 'Termina sessione', isRed: true),
-                      ],
-                    ),
-                    
-                    const SizedBox(height: 16),
-                  ],
+                      const SizedBox(height: 24),
+
+                      _buildExpandableSection(
+                        icon: Icons.lightbulb_outline,
+                        title: 'Scopri le funzionalità',
+                        isExpanded: _isUtilitiesExpanded,
+                        onToggle: () => setState(() => _isUtilitiesExpanded = !_isUtilitiesExpanded),
+                        children: [
+                          _buildUtilityItem(Icons.add_comment, 'Nuova conversazione'),
+                          _buildUtilityItem(Icons.article_outlined, 'Riassunto sessione'),
+                          _buildUtilityItem(Icons.close, 'Termina sessione', isRed: true),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -1765,13 +1768,7 @@ Widget _buildGoogleConnectionSection() {
                 Expanded(
                   child: TextButton.icon(
                     onPressed: () {
-                      // TODO: Implement Gmail access
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Gmail - Coming soon!'),
-                          backgroundColor: AppColors.warning,
-                        ),
-                      );
+                      _showGmailDialog();
                     },
                     icon: const Icon(Icons.email, size: 16),
                     label: const Text(
@@ -1895,6 +1892,43 @@ Widget _buildGoogleConnectionSection() {
               label: 'Riprova',
               textColor: Colors.white,
               onPressed: () => _showGoogleDriveSearch(),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showGmailDialog() async {
+    try {
+      final selectedEmailContent = await showDialog<String>(
+        context: context,
+        builder: (context) => const GmailDialog(),
+      );
+
+      if (selectedEmailContent != null && selectedEmailContent.isNotEmpty) {
+        _messageController.text = selectedEmailContent;
+        _messageFocusNode.requestFocus();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Email aggiunta al messaggio'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore accesso Gmail: $e'),
+            backgroundColor: AppColors.error,
+            action: SnackBarAction(
+              label: 'Riprova',
+              textColor: Colors.white,
+              onPressed: () => _showGmailDialog(),
             ),
           ),
         );
