@@ -740,12 +740,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           ],
         );
       } else if (selectedEmails.isNotEmpty) {
+        final emailToPreview = selectedEmails.first;
         return Column(
           children: [
             _buildCompactEmailSelector(selectedEmails),
             const Divider(height: 1, color: AppColors.divider),
             Expanded(
-              child: _buildEmailPreview(selectedEmails.first),
+              child: _buildEmailPreview(emailToPreview),
             ),
           ],
         );
@@ -2029,6 +2030,9 @@ Widget _buildGoogleConnectionSection() {
   }
 
   Widget _buildCompactEmailSelector(List<GmailMessage> emails) {
+    if (emails.isEmpty) {
+      return const SizedBox();
+    }
     final currentEmail = emails.first;
 
     return Container(

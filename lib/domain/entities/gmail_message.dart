@@ -43,20 +43,26 @@ class GmailMessage {
 
   DateTime get date => DateTime.fromMillisecondsSinceEpoch(internalDate);
 
-  String get subject => payload.headers
-      .where((h) => h.name.toLowerCase() == 'subject')
-      .map((h) => h.value)
-      .firstOrNull ?? '';
+  String get subject {
+    final subjectHeaders = payload.headers
+        .where((h) => h.name.toLowerCase() == 'subject')
+        .map((h) => h.value);
+    return subjectHeaders.isNotEmpty ? subjectHeaders.first : '';
+  }
 
-  String get from => payload.headers
-      .where((h) => h.name.toLowerCase() == 'from')
-      .map((h) => h.value)
-      .firstOrNull ?? '';
+  String get from {
+    final fromHeaders = payload.headers
+        .where((h) => h.name.toLowerCase() == 'from')
+        .map((h) => h.value);
+    return fromHeaders.isNotEmpty ? fromHeaders.first : '';
+  }
 
-  String get to => payload.headers
-      .where((h) => h.name.toLowerCase() == 'to')
-      .map((h) => h.value)
-      .firstOrNull ?? '';
+  String get to {
+    final toHeaders = payload.headers
+        .where((h) => h.name.toLowerCase() == 'to')
+        .map((h) => h.value);
+    return toHeaders.isNotEmpty ? toHeaders.first : '';
+  }
 
   bool get isUnread => labelIds.contains('UNREAD');
   bool get isImportant => labelIds.contains('IMPORTANT');
