@@ -351,7 +351,7 @@ class EmailPreviewDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.backgroundSecondary,
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
