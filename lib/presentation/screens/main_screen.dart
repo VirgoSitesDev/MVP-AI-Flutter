@@ -617,8 +617,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     // Se nessun file è selezionato per preview, usa il primo della lista
                     final fileToPreview = _selectedFileForPreview ?? selectedFiles.first;
 
+                    print('🔍 File selezionati: ${selectedFiles.length}');
+                    print('🔍 File per preview: ${fileToPreview.name}');
+                    print('🔍 _selectedFileForPreview: ${_selectedFileForPreview?.name}');
+                    print('🔍 _previewContent != null: ${_previewContent != null}');
+                    print('🔍 _isLoadingPreview: $_isLoadingPreview');
+
                     // Se è la prima volta che mostriamo un file, carica il contenuto
                     if (_selectedFileForPreview == null && _previewContent == null && !_isLoadingPreview) {
+                      print('🚀 Avvio caricamento automatico del primo file');
                       _selectedFileForPreview = fileToPreview;
                       _loadFileContent(fileToPreview);
                     }
@@ -788,10 +795,18 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
 
     Widget _buildFilePreview(DriveFile file) {
-      // Se il file è cambiato, carica il nuovo contenuto
-      if (_selectedFileForPreview?.id != file.id) {
+      print('🎨 _buildFilePreview chiamato per: ${file.name}');
+      print('🎨 _isLoadingPreview: $_isLoadingPreview');
+      print('🎨 _previewContent != null: ${_previewContent != null}');
+
+      // Se il file è cambiato o non abbiamo ancora contenuto, carica il nuovo contenuto
+      if (_selectedFileForPreview?.id != file.id || (_previewContent == null && !_isLoadingPreview)) {
+        print('🔄 File cambiato o contenuto mancante, carico il contenuto');
         _selectedFileForPreview = file;
-        _loadFileContent(file);
+        // Usa un callback post-frame per evitare setState durante il build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _loadFileContent(file);
+        });
       }
 
       return Container(
@@ -831,6 +846,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     Future<void> _loadFileContent(DriveFile file) async {
+      print('🔄 Inizio caricamento contenuto per file: ${file.name} (ID: ${file.id})');
+
       if (mounted) {
         setState(() {
           _isLoadingPreview = true;
@@ -839,17 +856,24 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       }
 
       try {
+        print('📄 Chiamata a extractContent per: ${file.name}');
         final content = await _contentExtractor.extractContent(file);
+        print('✅ Contenuto estratto, lunghezza: ${content.length} caratteri');
+
         if (mounted) {
           setState(() {
             _previewContent = content;
             _isLoadingPreview = false;
           });
+          print('✅ UI aggiornata con il contenuto');
         }
-      } catch (e) {
+      } catch (e, stackTrace) {
+        print('❌ Errore nel caricamento del contenuto: $e');
+        print('📍 Stack trace: $stackTrace');
+
         if (mounted) {
           setState(() {
-            _previewContent = 'Errore nel caricamento del contenuto:\n\n${e.toString()}';
+            _previewContent = 'Errore nel caricamento del contenuto:\n\n${e.toString()}\n\nDettagli:\n- File: ${file.name}\n- ID: ${file.id}\n- Tipo: ${file.mimeType}';
             _isLoadingPreview = false;
           });
         }
