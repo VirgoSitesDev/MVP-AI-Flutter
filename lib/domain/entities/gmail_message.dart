@@ -22,17 +22,23 @@ class GmailMessage {
   });
 
   factory GmailMessage.fromJson(Map<String, dynamic> json) {
-    return GmailMessage(
-      id: json['id'] ?? '',
-      threadId: json['threadId'] ?? '',
-      labelIds: List<String>.from(json['labelIds'] ?? []),
-      snippet: json['snippet'] ?? '',
-      historyId: json['historyId'] ?? '',
-      internalDate: int.tryParse(json['internalDate']?.toString() ?? '0') ?? 0,
-      payload: GmailPayload.fromJson(json['payload'] ?? {}),
-      sizeEstimate: json['sizeEstimate'] ?? 0,
-      raw: json['raw'] ?? '',
-    );
+    try {
+      return GmailMessage(
+        id: json['id']?.toString() ?? '',
+        threadId: json['threadId']?.toString() ?? '',
+        labelIds: (json['labelIds'] as List?)?.map((e) => e.toString()).toList() ?? [],
+        snippet: json['snippet']?.toString() ?? '',
+        historyId: json['historyId']?.toString() ?? '',
+        internalDate: int.tryParse(json['internalDate']?.toString() ?? '0') ?? 0,
+        payload: GmailPayload.fromJson((json['payload'] is Map<String, dynamic>) ? json['payload'] : {}),
+        sizeEstimate: (json['sizeEstimate'] is int) ? json['sizeEstimate'] : int.tryParse(json['sizeEstimate']?.toString() ?? '0') ?? 0,
+        raw: json['raw']?.toString() ?? '',
+      );
+    } catch (e) {
+      print('❌ GmailMessage.fromJson error: $e');
+      print('JSON data keys: ${json.keys.toList()}');
+      rethrow;
+    }
   }
 
   DateTime get date => DateTime.fromMillisecondsSinceEpoch(internalDate);
@@ -127,18 +133,31 @@ class GmailPayload {
   });
 
   factory GmailPayload.fromJson(Map<String, dynamic> json) {
-    return GmailPayload(
-      partId: json['partId'] ?? '',
-      mimeType: json['mimeType'] ?? '',
-      filename: json['filename'] ?? '',
-      headers: (json['headers'] as List?)
-          ?.map((h) => GmailHeader.fromJson(h))
-          .toList() ?? [],
-      body: GmailBody.fromJson(json['body'] ?? {}),
-      parts: (json['parts'] as List?)
-          ?.map((p) => GmailPayload.fromJson(p))
-          .toList() ?? [],
-    );
+    try {
+      return GmailPayload(
+        partId: json['partId']?.toString() ?? '',
+        mimeType: json['mimeType']?.toString() ?? '',
+        filename: json['filename']?.toString() ?? '',
+        headers: (json['headers'] as List?)
+            ?.map((h) => GmailHeader.fromJson(h is Map<String, dynamic> ? h : {}))
+            .toList() ?? [],
+        body: GmailBody.fromJson((json['body'] is Map<String, dynamic>) ? json['body'] : {}),
+        parts: (json['parts'] as List?)
+            ?.map((p) => GmailPayload.fromJson(p is Map<String, dynamic> ? p : {}))
+            .toList() ?? [],
+      );
+    } catch (e) {
+      print('❌ GmailPayload.fromJson error: $e');
+      print('JSON data: $json');
+      return GmailPayload(
+        partId: '',
+        mimeType: '',
+        filename: '',
+        headers: [],
+        body: GmailBody(attachmentId: '', size: 0, data: ''),
+        parts: [],
+      );
+    }
   }
 }
 
@@ -152,10 +171,15 @@ class GmailHeader {
   });
 
   factory GmailHeader.fromJson(Map<String, dynamic> json) {
-    return GmailHeader(
-      name: json['name'] ?? '',
-      value: json['value'] ?? '',
-    );
+    try {
+      return GmailHeader(
+        name: json['name']?.toString() ?? '',
+        value: json['value']?.toString() ?? '',
+      );
+    } catch (e) {
+      print('❌ GmailHeader.fromJson error: $e');
+      return GmailHeader(name: '', value: '');
+    }
   }
 }
 
@@ -171,11 +195,16 @@ class GmailBody {
   });
 
   factory GmailBody.fromJson(Map<String, dynamic> json) {
-    return GmailBody(
-      attachmentId: json['attachmentId'] ?? '',
-      size: json['size'] ?? 0,
-      data: json['data'] ?? '',
-    );
+    try {
+      return GmailBody(
+        attachmentId: json['attachmentId']?.toString() ?? '',
+        size: (json['size'] is int) ? json['size'] : int.tryParse(json['size']?.toString() ?? '0') ?? 0,
+        data: json['data']?.toString() ?? '',
+      );
+    } catch (e) {
+      print('❌ GmailBody.fromJson error: $e');
+      return GmailBody(attachmentId: '', size: 0, data: '');
+    }
   }
 }
 
