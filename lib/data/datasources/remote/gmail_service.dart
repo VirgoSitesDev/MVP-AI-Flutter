@@ -56,6 +56,7 @@ class GmailService {
     String? pageToken,
   }) async {
     try {
+      print('🔍 Gmail Service: getMessages chiamato con query="$query", labelIds="$labelIds", maxResults=$maxResults');
       await _ensureInitialized();
 
       final listRequest = await _gmailApi!.users.messages.list(
@@ -66,22 +67,33 @@ class GmailService {
         pageToken: pageToken,
       );
 
+      print('📧 Gmail Service: Risposta API - ${listRequest.messages?.length ?? 0} messaggi trovati');
+
       if (listRequest.messages == null || listRequest.messages!.isEmpty) {
+        print('📭 Gmail Service: Nessun messaggio trovato nella risposta API');
         return [];
       }
 
       final messages = <GmailMessage>[];
+      print('🔄 Gmail Service: Elaborazione ${listRequest.messages!.length} messaggi...');
+
       for (final messageRef in listRequest.messages!) {
         if (messageRef.id != null) {
+          print('📩 Gmail Service: Caricamento messaggio ${messageRef.id}');
           final fullMessage = await getMessage(messageRef.id!);
           if (fullMessage != null) {
             messages.add(fullMessage);
+            print('✅ Gmail Service: Messaggio ${messageRef.id} caricato - Subject: ${fullMessage.subject}');
+          } else {
+            print('❌ Gmail Service: Messaggio ${messageRef.id} non caricato');
           }
         }
       }
 
+      print('📬 Gmail Service: Totale messaggi elaborati: ${messages.length}');
       return messages;
     } catch (e) {
+      print('❌ Gmail Service: Errore in getMessages: $e');
       rethrow;
     }
   }
@@ -90,14 +102,18 @@ class GmailService {
     try {
       await _ensureInitialized();
 
+      print('📄 Gmail Service: Caricamento dettagli messaggio $messageId');
       final message = await _gmailApi!.users.messages.get(
         'me',
         messageId,
         format: 'full',
       );
 
-      return GmailMessage.fromJson(message.toJson());
+      final gmailMessage = GmailMessage.fromJson(message.toJson());
+      print('✅ Gmail Service: Messaggio $messageId caricato - From: ${gmailMessage.from}, Subject: ${gmailMessage.subject}');
+      return gmailMessage;
     } catch (e) {
+      print('❌ Gmail Service: Errore caricamento messaggio $messageId: $e');
       return null;
     }
   }
