@@ -140,17 +140,27 @@ class _GmailDialogState extends ConsumerState<GmailDialog> with TickerProviderSt
     return messagesAsync.when(
       data: (messages) {
         if (messages.isEmpty) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.mail_outline, size: 64, color: AppColors.iconSecondary),
-                SizedBox(height: 16),
-                Text(
+                const Icon(Icons.mail_outline, size: 64, color: AppColors.iconSecondary),
+                const SizedBox(height: 16),
+                const Text(
                   'Nessun messaggio trovato',
                   style: TextStyle(
                     fontSize: 16,
                     color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () => _requestGmailPermissions(),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Verifica permessi Gmail'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
                   ),
                 ),
               ],
@@ -176,14 +186,38 @@ class _GmailDialogState extends ConsumerState<GmailDialog> with TickerProviderSt
             const Icon(Icons.error_outline, size: 64, color: AppColors.error),
             const SizedBox(height: 16),
             Text(
-              'Errore nel caricamento: $error',
+              'Errore nel caricamento Gmail: $error',
               style: const TextStyle(color: AppColors.error),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 8),
+            const Text(
+              'Potrebbe essere necessario autorizzare l\'accesso a Gmail',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => ref.invalidate(gmailMessagesProvider(query)),
-              child: const Text('Riprova'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () => _requestGmailPermissions(),
+                  icon: const Icon(Icons.security),
+                  label: const Text('Autorizza Gmail'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(gmailMessagesProvider(query)),
+                  child: const Text('Riprova'),
+                ),
+              ],
             ),
           ],
         ),
@@ -304,6 +338,39 @@ class _GmailDialogState extends ConsumerState<GmailDialog> with TickerProviderSt
       context: context,
       builder: (context) => EmailPreviewDialog(message: message),
     );
+  }
+
+  Future<void> _requestGmailPermissions() async {
+    try {
+      final gmailService = ref.read(gmailServiceProvider);
+
+      await gmailService.initialize();
+
+      ref.invalidate(gmailMessagesProvider);
+
+      setState(() {
+        _tabController.index = 0;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gmail autorizzato! Ricaricamento messaggi...'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore autorizzazione Gmail: $e'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
   }
 }
 

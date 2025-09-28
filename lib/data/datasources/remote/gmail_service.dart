@@ -15,10 +15,25 @@ class GmailService {
     try {
       final client = await _authService.getAuthenticatedClient();
       if (client == null) {
-        throw Exception('Client non autenticato');
+        throw Exception('Client non autenticato - Effettua il login con Google Workspace');
       }
       _gmailApi = gmail.GmailApi(client);
+
+      await _testGmailAccess();
     } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> _testGmailAccess() async {
+    try {
+      if (_gmailApi == null) return;
+
+      await _gmailApi!.users.getProfile('me');
+    } catch (e) {
+      if (e.toString().contains('403') || e.toString().contains('insufficient')) {
+        throw Exception('Accesso Gmail non autorizzato - Clicca su "Autorizza Gmail" per concedere i permessi');
+      }
       rethrow;
     }
   }
@@ -270,7 +285,7 @@ class GmailService {
     if (_gmailApi == null) {
       await initialize();
       if (_gmailApi == null) {
-        throw Exception('Gmail Service non inizializzato');
+        throw Exception('Gmail Service non inizializzato - Verifica che l\'account Google sia autorizzato per Gmail');
       }
     }
   }
