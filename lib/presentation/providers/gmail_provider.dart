@@ -9,19 +9,26 @@ final gmailServiceProvider = Provider<GmailService>((ref) {
 final gmailMessagesProvider = FutureProvider.family<List<GmailMessage>, GmailQuery>((ref, query) async {
   final gmailService = ref.read(gmailServiceProvider);
 
-  switch (query.type) {
-    case GmailQueryType.inbox:
-      return gmailService.getInboxMessages(maxResults: query.maxResults);
-    case GmailQueryType.unread:
-      return gmailService.getUnreadMessages(maxResults: query.maxResults);
-    case GmailQueryType.important:
-      return gmailService.getImportantMessages(maxResults: query.maxResults);
-    case GmailQueryType.search:
-      return gmailService.searchMessages(query: query.searchQuery!, maxResults: query.maxResults);
-    case GmailQueryType.fromSender:
-      return gmailService.getMessagesFromSender(senderEmail: query.senderEmail!, maxResults: query.maxResults);
-    case GmailQueryType.recent:
-      return gmailService.getRecentMessages(days: query.days!, maxResults: query.maxResults);
+  print('🔍 Gmail Provider: Tentativo di caricamento messaggi per query: ${query.type}');
+
+  try {
+    switch (query.type) {
+      case GmailQueryType.inbox:
+        return await gmailService.getInboxMessages(maxResults: query.maxResults);
+      case GmailQueryType.unread:
+        return await gmailService.getUnreadMessages(maxResults: query.maxResults);
+      case GmailQueryType.important:
+        return await gmailService.getImportantMessages(maxResults: query.maxResults);
+      case GmailQueryType.search:
+        return await gmailService.searchMessages(query: query.searchQuery!, maxResults: query.maxResults);
+      case GmailQueryType.fromSender:
+        return await gmailService.getMessagesFromSender(senderEmail: query.senderEmail!, maxResults: query.maxResults);
+      case GmailQueryType.recent:
+        return await gmailService.getRecentMessages(days: query.days!, maxResults: query.maxResults);
+    }
+  } catch (e) {
+    print('❌ Gmail Provider Error: $e');
+    rethrow;
   }
 });
 

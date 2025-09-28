@@ -13,24 +13,35 @@ class GmailService {
 
   Future<void> initialize() async {
     try {
+      print('🔧 Gmail Service: Inizializzazione...');
       final client = await _authService.getAuthenticatedClient();
       if (client == null) {
+        print('❌ Gmail Service: Client non autenticato');
         throw Exception('Client non autenticato - Effettua il login con Google Workspace');
       }
+      print('✅ Gmail Service: Client autenticato ottenuto');
       _gmailApi = gmail.GmailApi(client);
 
       await _testGmailAccess();
+      print('✅ Gmail Service: Inizializzazione completata');
     } catch (e) {
+      print('❌ Gmail Service: Errore inizializzazione: $e');
       rethrow;
     }
   }
 
   Future<void> _testGmailAccess() async {
     try {
-      if (_gmailApi == null) return;
+      if (_gmailApi == null) {
+        print('❌ Gmail Service: API non inizializzata per test accesso');
+        return;
+      }
 
-      await _gmailApi!.users.getProfile('me');
+      print('🔍 Gmail Service: Test accesso Gmail...');
+      final profile = await _gmailApi!.users.getProfile('me');
+      print('✅ Gmail Service: Accesso Gmail confermato - Email: ${profile.emailAddress}');
     } catch (e) {
+      print('❌ Gmail Service: Test accesso fallito: $e');
       if (e.toString().contains('403') || e.toString().contains('insufficient')) {
         throw Exception('Accesso Gmail non autorizzato - Clicca su "Autorizza Gmail" per concedere i permessi');
       }
