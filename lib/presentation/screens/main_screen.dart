@@ -31,6 +31,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   DriveFile? _selectedFileForPreview;
   String? _previewContent;
+  StructuredContent? _structuredPreviewContent;
   bool _isLoadingPreview = false;
   final GoogleDriveContentExtractor _contentExtractor = GoogleDriveContentExtractor();
 
@@ -739,6 +740,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             setState(() {
               _selectedFileForPreview = null;
               _previewContent = null;
+              _structuredPreviewContent = null;
               _isLoadingPreview = false;
             });
           }
@@ -800,20 +802,22 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   ],
                 ),
               )
-            : _previewContent != null && _previewContent!.isNotEmpty
-                ? SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: SelectableText(
-                      _previewContent!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textPrimary,
-                        fontFamily: 'monospace',
-                        height: 1.5,
-                      ),
-                    ),
-                  )
-                : _buildPreviewContent(file),
+            : _structuredPreviewContent != null
+                ? _buildStructuredContent(_structuredPreviewContent!)
+                : _previewContent != null && _previewContent!.isNotEmpty
+                    ? SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: SelectableText(
+                          _previewContent!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textPrimary,
+                            fontFamily: 'monospace',
+                            height: 1.5,
+                          ),
+                        ),
+                      )
+                    : _buildPreviewContent(file),
       );
     }
 
@@ -939,20 +943,21 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         setState(() {
           _isLoadingPreview = true;
           _previewContent = null;
+          _structuredPreviewContent = null;
         });
       }
 
       try {
-        print('📄 Chiamata a extractContent per: ${file.name}');
-        final content = await _contentExtractor.extractContent(file);
-        print('✅ Contenuto estratto, lunghezza: ${content.length} caratteri');
+        print('📄 Chiamata a extractStructuredContent per: ${file.name}');
+        final structuredContent = await _contentExtractor.extractStructuredContent(file);
+        print('✅ Contenuto strutturato estratto, tipo: ${structuredContent.type}');
 
         if (mounted) {
           setState(() {
-            _previewContent = content;
+            _structuredPreviewContent = structuredContent;
             _isLoadingPreview = false;
           });
-          print('✅ UI aggiornata con il contenuto');
+          print('✅ UI aggiornata con il contenuto strutturato');
         }
       } catch (e, stackTrace) {
         print('❌ Errore nel caricamento del contenuto: $e');
@@ -961,10 +966,173 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         if (mounted) {
           setState(() {
             _previewContent = 'Errore nel caricamento del contenuto:\n\n${e.toString()}\n\nDettagli:\n- File: ${file.name}\n- ID: ${file.id}\n- Tipo: ${file.mimeType}';
+            _structuredPreviewContent = null;
             _isLoadingPreview = false;
           });
         }
       }
+    }
+
+    Widget _buildStructuredContent(StructuredContent content) {
+      if (content.isTable && content.tableData != null && content.headers != null) {
+        return _buildTableView(content);
+      } else {
+        return _buildTextView(content);
+      }
+    }
+
+    Widget _buildTableView(StructuredContent content) {
+      final headers = content.headers!;
+      final tableData = content.tableData!;
+
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title
+            Text(
+              content.title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Tabella con ${tableData.length} righe e ${headers.length} colonne',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Table
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.outline),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  headingRowColor: MaterialStateProperty.all(AppColors.surface),
+                  border: TableBorder.all(
+                    color: AppColors.outline,
+                    width: 0.5,
+                  ),
+                  columnSpacing: 16,
+                  headingTextStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                  dataTextStyle: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textPrimary,
+                  ),
+                  columns: headers.map((header) => DataColumn(
+                    label: Expanded(
+                      child: Text(
+                        header.isNotEmpty ? header : 'Colonna',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  )).toList(),
+                  rows: tableData.take(100).map((row) { // Limit to 100 rows for performance
+                    // Ensure row has same number of cells as headers
+                    final adjustedRow = List<String>.filled(headers.length, '');
+                    for (int i = 0; i < row.length && i < headers.length; i++) {
+                      adjustedRow[i] = row[i];
+                    }
+
+                    return DataRow(
+                      cells: adjustedRow.map((cell) => DataCell(
+                        Container(
+                          constraints: const BoxConstraints(maxWidth: 200),
+                          child: Text(
+                            cell.isNotEmpty ? cell : '-',
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )).toList(),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+
+            if (tableData.length > 100) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.warning.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: AppColors.warning,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Visualizzate le prime 100 righe di ${tableData.length} totali per prestazioni ottimali',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.warning,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    Widget _buildTextView(StructuredContent content) {
+      final text = content.text ?? 'Contenuto non disponibile';
+
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title
+            Text(
+              content.title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Content
+            SelectableText(
+              text,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textPrimary,
+                fontFamily: 'monospace',
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     Widget _buildPreviewContent(DriveFile file) {

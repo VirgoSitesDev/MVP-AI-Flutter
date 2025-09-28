@@ -1,8 +1,29 @@
 // lib/data/datasources/remote/google_drive_content_extractor.dart
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:excel/excel.dart' as excel_lib; // Import della libreria Excel
 import 'google_drive_service.dart';
+
+/// Classe per rappresentare contenuto strutturato (come tabelle)
+class StructuredContent {
+  final String type; // 'text', 'table'
+  final String? text;
+  final List<List<String>>? tableData;
+  final List<String>? headers;
+  final String title;
+
+  StructuredContent({
+    required this.type,
+    this.text,
+    this.tableData,
+    this.headers,
+    required this.title,
+  });
+
+  bool get isTable => type == 'table';
+  bool get isText => type == 'text';
+}
 
 /// Classe per estrarre il contenuto testuale dai file di Google Drive
 class GoogleDriveContentExtractor {
@@ -13,7 +34,47 @@ class GoogleDriveContentExtractor {
   static const int maxTextLength = 100000; // 100k caratteri
   static const int maxExcelRows = 1000; // Limite righe Excel da processare
   
-  /// Estrae il contenuto testuale da un file Drive
+  /// Estrae il contenuto strutturato da un file Drive
+  Future<StructuredContent> extractStructuredContent(DriveFile file) async {
+    try {
+      if (kDebugMode) {
+        print('📄 Estrazione contenuto strutturato da: ${file.name}');
+      }
+
+      // Per file Google Workspace, usa l'export
+      if (file.mimeType?.startsWith('application/vnd.google-apps') ?? false) {
+        return await _extractGoogleWorkspaceStructuredContent(file);
+      }
+
+      // Per altri file, verifica il tipo
+      switch (file.mimeType) {
+        case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+        case 'application/vnd.ms-excel':
+        case 'application/x-excel':
+        case 'application/x-msexcel':
+          return await _extractExcelStructuredContent(file);
+        default:
+          // Per altri tipi, ritorna come testo
+          final textContent = await extractContent(file);
+          return StructuredContent(
+            type: 'text',
+            text: textContent,
+            title: file.name,
+          );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Errore estrazione contenuto strutturato: $e');
+      }
+      return StructuredContent(
+        type: 'text',
+        text: _getFileMetadata(file, reason: 'Errore: ${e.toString()}'),
+        title: file.name,
+      );
+    }
+  }
+
+  /// Estrae il contenuto testuale da un file Drive (metodo originale)
   Future<String> extractContent(DriveFile file) async {
     try {
       if (kDebugMode) {
@@ -364,7 +425,224 @@ Fine del file: ${file.name}
     }
   }
   
-  /// Formatta contenuto CSV per migliore leggibilità
+  /// Estrae contenuto strutturato da Google Workspace
+  Future<StructuredContent> _extractGoogleWorkspaceStructuredContent(DriveFile file) async {
+    try {
+      String exportMimeType;
+      String fileType;
+
+      switch (file.mimeType) {
+        case 'application/vnd.google-apps.document':
+          exportMimeType = 'text/plain';
+          fileType = 'Google Docs';
+          break;
+        case 'application/vnd.google-apps.spreadsheet':
+          exportMimeType = 'text/csv';
+          fileType = 'Google Sheets';
+          break;
+        case 'application/vnd.google-apps.presentation':
+          exportMimeType = 'text/plain';
+          fileType = 'Google Slides';
+          break;
+        default:
+          return StructuredContent(
+            type: 'text',
+            text: _getFileMetadata(file),
+            title: file.name,
+          );
+      }
+
+      if (kDebugMode) {
+        print('📤 Esportazione $fileType come $exportMimeType...');
+      }
+
+      // Scarica effettivamente il contenuto
+      final bytes = await _driveService.exportGoogleFile(file.id, file.mimeType!);
+
+      if (bytes == null || bytes.isEmpty) {
+        return StructuredContent(
+          type: 'text',
+          text: _getFileMetadata(file),
+          title: file.name,
+        );
+      }
+
+      // Converti in testo
+      String content;
+      try {
+        content = utf8.decode(bytes, allowMalformed: true);
+      } catch (e) {
+        if (kDebugMode) {
+          print('⚠️ File non testuale, usando metadata');
+        }
+        return StructuredContent(
+          type: 'text',
+          text: _getFileMetadata(file),
+          title: file.name,
+        );
+      }
+
+      // Se è un CSV da Google Sheets, crealo come tabella strutturata
+      if (fileType == 'Google Sheets' && exportMimeType == 'text/csv') {
+        return _parseCSVToStructuredContent(content, file.name);
+      }
+
+      // Tronca se troppo lungo
+      if (content.length > maxTextLength) {
+        content = content.substring(0, maxTextLength) + '\n\n[... contenuto troncato ...]';
+      }
+
+      return StructuredContent(
+        type: 'text',
+        text: content,
+        title: file.name,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Errore export Google Workspace: $e');
+      }
+      return StructuredContent(
+        type: 'text',
+        text: _getFileMetadata(file),
+        title: file.name,
+      );
+    }
+  }
+
+  /// Estrae contenuto strutturato da file Excel
+  Future<StructuredContent> _extractExcelStructuredContent(DriveFile file) async {
+    try {
+      final bytes = await _driveService.downloadFile(file.id);
+      if (bytes == null || bytes.isEmpty) {
+        return StructuredContent(
+          type: 'text',
+          text: _getFileMetadata(file, reason: 'File Excel vuoto o non accessibile'),
+          title: file.name,
+        );
+      }
+
+      final excel = excel_lib.Excel.decodeBytes(Uint8List.fromList(bytes));
+
+      if (excel.tables.isEmpty) {
+        return StructuredContent(
+          type: 'text',
+          text: 'File Excel senza fogli dati',
+          title: file.name,
+        );
+      }
+
+      // Usa il primo foglio per la tabella
+      final firstSheet = excel.tables.values.first;
+      if (firstSheet == null || firstSheet.rows.isEmpty) {
+        return StructuredContent(
+          type: 'text',
+          text: 'Foglio Excel vuoto',
+          title: file.name,
+        );
+      }
+
+      List<String>? headers;
+      List<List<String>> tableData = [];
+
+      for (int i = 0; i < firstSheet.rows.length && i < maxExcelRows; i++) {
+        final row = firstSheet.rows[i];
+        final rowData = row.map((cell) =>
+          cell?.value != null ? _formatCellValue(cell!.value) : ''
+        ).toList();
+
+        // Skip empty rows
+        if (rowData.every((cell) => cell.isEmpty)) continue;
+
+        if (headers == null) {
+          headers = rowData;
+        } else {
+          tableData.add(rowData);
+        }
+      }
+
+      return StructuredContent(
+        type: 'table',
+        tableData: tableData,
+        headers: headers,
+        title: file.name,
+      );
+    } catch (e) {
+      return StructuredContent(
+        type: 'text',
+        text: _getExcelErrorMessage(file, e.toString()),
+        title: file.name,
+      );
+    }
+  }
+
+  /// Converte CSV in contenuto strutturato
+  StructuredContent _parseCSVToStructuredContent(String csvContent, String fileName) {
+    try {
+      final lines = csvContent.split('\n')
+          .where((line) => line.trim().isNotEmpty)
+          .toList();
+
+      if (lines.isEmpty) {
+        return StructuredContent(
+          type: 'text',
+          text: 'File CSV vuoto',
+          title: fileName,
+        );
+      }
+
+      List<String>? headers;
+      List<List<String>> tableData = [];
+
+      for (int i = 0; i < lines.length && i < maxExcelRows; i++) {
+        final line = lines[i];
+        final rowData = _parseCSVLine(line);
+
+        if (headers == null) {
+          headers = rowData;
+        } else {
+          tableData.add(rowData);
+        }
+      }
+
+      return StructuredContent(
+        type: 'table',
+        tableData: tableData,
+        headers: headers,
+        title: fileName,
+      );
+    } catch (e) {
+      return StructuredContent(
+        type: 'text',
+        text: 'Errore nel parsing CSV: $e',
+        title: fileName,
+      );
+    }
+  }
+
+  /// Parsing semplice di una riga CSV
+  List<String> _parseCSVLine(String line) {
+    final result = <String>[];
+    bool inQuotes = false;
+    String currentCell = '';
+
+    for (int i = 0; i < line.length; i++) {
+      final char = line[i];
+
+      if (char == '"') {
+        inQuotes = !inQuotes;
+      } else if (char == ',' && !inQuotes) {
+        result.add(currentCell.trim());
+        currentCell = '';
+      } else {
+        currentCell += char;
+      }
+    }
+
+    result.add(currentCell.trim());
+    return result;
+  }
+
+  /// Formatta contenuto CSV per migliore leggibilità (metodo originale - mantenuto per compatibilità)
   String _formatCsvContent(String csvContent, String fileName) {
     try {
       final lines = csvContent.split('\n');
