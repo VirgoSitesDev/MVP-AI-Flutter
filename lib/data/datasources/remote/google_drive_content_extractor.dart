@@ -1,10 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:excel/excel.dart' as excel_lib;
 import 'package:pdfx/pdfx.dart';
-import 'package:path_provider/path_provider.dart';
 import 'google_drive_service.dart';
 
 class StructuredContent {
@@ -649,14 +647,9 @@ Fine del file: ${file.name}
         );
       }
 
-      // Create a temporary file to store the PDF
-      final tempDir = await getTemporaryDirectory();
-      final tempFile = File('${tempDir.path}/temp_pdf_${file.id}.pdf');
-      await tempFile.writeAsBytes(bytes);
-
       try {
         // Open the PDF document to extract text for Claude
-        final document = await PdfDocument.openFile(tempFile.path);
+        final document = await PdfDocument.openData(Uint8List.fromList(bytes));
 
         final StringBuffer buffer = StringBuffer();
         buffer.writeln('📕 ${file.name}');
@@ -666,36 +659,12 @@ Fine del file: ${file.name}
         buffer.writeln('---\n');
         buffer.writeln('CONTENUTO:\n');
 
-        // Extract text from each page
-        int pageCount = 0;
-        for (int i = 1; i <= document.pagesCount && pageCount < 100; i++) {
-          try {
-            final page = await document.getPage(i);
-            final pageText = await page.text;
-
-            if (pageText.isNotEmpty) {
-              buffer.writeln('--- Pagina $i ---');
-              buffer.writeln(pageText);
-              buffer.writeln('');
-            }
-
-            await page.close();
-            pageCount++;
-
-            // Check if we're approaching the max text length
-            if (buffer.length > maxTextLength - 1000) {
-              buffer.writeln('\n[... contenuto PDF troncato per limiti di spazio ...]');
-              break;
-            }
-          } catch (e) {
-            debugPrint('Errore nell\'estrazione della pagina $i: $e');
-          }
-        }
+        // Note: Text extraction is not supported by pdfx library
+        // The PDF will be displayed visually in the preview
+        buffer.writeln('\n[PDF text extraction not available - document will be displayed visually]');
+        buffer.writeln('Per favore, consulta il contenuto visivo del PDF nell\'anteprima.');
 
         await document.close();
-
-        // Clean up temp file
-        await tempFile.delete();
 
         buffer.writeln('---');
         buffer.writeln('Fine del documento PDF: ${file.name}');
@@ -714,11 +683,6 @@ Fine del file: ${file.name}
         );
 
       } catch (e) {
-        // Clean up temp file on error
-        if (await tempFile.exists()) {
-          await tempFile.delete();
-        }
-
         return StructuredContent(
           type: 'text',
           text: """
@@ -755,14 +719,9 @@ Link: ${file.webViewLink ?? 'N/A'}
         return _getFileMetadata(file, reason: 'File PDF vuoto o non accessibile');
       }
 
-      // Create a temporary file to store the PDF
-      final tempDir = await getTemporaryDirectory();
-      final tempFile = File('${tempDir.path}/temp_pdf_${file.id}.pdf');
-      await tempFile.writeAsBytes(bytes);
-
       try {
         // Open the PDF document
-        final document = await PdfDocument.openFile(tempFile.path);
+        final document = await PdfDocument.openData(Uint8List.fromList(bytes));
 
         final StringBuffer buffer = StringBuffer();
         buffer.writeln('📕 ${file.name}');
@@ -772,36 +731,12 @@ Link: ${file.webViewLink ?? 'N/A'}
         buffer.writeln('---\n');
         buffer.writeln('CONTENUTO:\n');
 
-        // Extract text from each page
-        int pageCount = 0;
-        for (int i = 1; i <= document.pagesCount && pageCount < 100; i++) {
-          try {
-            final page = await document.getPage(i);
-            final pageText = await page.text;
-
-            if (pageText.isNotEmpty) {
-              buffer.writeln('--- Pagina $i ---');
-              buffer.writeln(pageText);
-              buffer.writeln('');
-            }
-
-            await page.close();
-            pageCount++;
-
-            // Check if we're approaching the max text length
-            if (buffer.length > maxTextLength - 1000) {
-              buffer.writeln('\n[... contenuto PDF troncato per limiti di spazio ...]');
-              break;
-            }
-          } catch (e) {
-            debugPrint('Errore nell\'estrazione della pagina $i: $e');
-          }
-        }
+        // Note: Text extraction is not supported by pdfx library
+        // The PDF will be displayed visually in the preview
+        buffer.writeln('\n[PDF text extraction not available - document will be displayed visually]');
+        buffer.writeln('Per favore, consulta il contenuto visivo del PDF nell\'anteprima.');
 
         await document.close();
-
-        // Clean up temp file
-        await tempFile.delete();
 
         buffer.writeln('---');
         buffer.writeln('Fine del documento PDF: ${file.name}');
@@ -815,11 +750,6 @@ Link: ${file.webViewLink ?? 'N/A'}
         return content;
 
       } catch (e) {
-        // Clean up temp file on error
-        if (await tempFile.exists()) {
-          await tempFile.delete();
-        }
-
         return """
 📕 ${file.name}
 Tipo: PDF Document
