@@ -56,6 +56,9 @@ dependencies:
   # Excel parsing
   excel: ^4.0.2  # Versione più vecchia
 
+  # PDF support
+  pdfx: ^2.6.0  # PDF rendering and text extraction
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

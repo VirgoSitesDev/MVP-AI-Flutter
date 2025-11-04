@@ -71,7 +71,7 @@ Future<void> _initializeHive() async {
 
   } catch (e) {
     if (kDebugMode) {
-      print('❌ Errore nell\'inizializzazione di Hive: $e');
+      w('❌ Errore nell\'inizializzazione di Hive: $e');
     }
   }
 }

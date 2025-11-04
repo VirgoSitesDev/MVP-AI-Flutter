@@ -1,8 +1,10 @@
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:pdfx/pdfx.dart';
 import '../../core/theme/colors.dart';
 import '../../domain/entities/gmail_message.dart';
 import '../../data/datasources/remote/supabase_service.dart';
@@ -934,6 +936,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     Widget _buildStructuredContent(StructuredContent content) {
       if (content.isTable && content.tableData != null && content.headers != null) {
         return _buildTableView(content);
+      } else if (content.isPdf && content.pdfBytes != null) {
+        return _buildPdfView(content);
       } else {
         return _buildTextView(content);
       }
@@ -1085,6 +1089,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
           ],
         ),
+      );
+    }
+
+    Widget _buildPdfView(StructuredContent content) {
+      return _PdfViewerInline(
+        pdfBytes: Uint8List.fromList(content.pdfBytes!),
+        title: content.title,
       );
     }
 
@@ -2339,6 +2350,293 @@ Widget _buildGoogleConnectionSection() {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Inline PDF Viewer Widget for Smart Preview
+class _PdfViewerInline extends StatefulWidget {
+  final Uint8List pdfBytes;
+  final String title;
+
+  const _PdfViewerInline({
+    required this.pdfBytes,
+    required this.title,
+  });
+
+  @override
+  State<_PdfViewerInline> createState() => _PdfViewerInlineState();
+}
+
+class _PdfViewerInlineState extends State<_PdfViewerInline> {
+  PdfDocument? _document;
+  PdfPageImage? _currentPageImage;
+  int _currentPage = 1;
+  int _totalPages = 0;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPdf();
+  }
+
+  Future<void> _loadPdf() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      final document = await PdfDocument.openData(widget.pdfBytes);
+
+      setState(() {
+        _document = document;
+        _totalPages = document.pagesCount;
+      });
+
+      await _loadPage(_currentPage);
+    } catch (e) {
+      setState(() {
+        _error = 'Errore nel caricamento del PDF: ${e.toString()}';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadPage(int pageNumber) async {
+    if (_document == null) return;
+
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final page = await _document!.getPage(pageNumber);
+      final pageImage = await page.render(
+        width: page.width * 2,
+        height: page.height * 2,
+        format: PdfPageImageFormat.png,
+      );
+      await page.close();
+
+      if (mounted) {
+        setState(() {
+          _currentPageImage = pageImage;
+          _currentPage = pageNumber;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Errore nel caricamento della pagina: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _nextPage() {
+    if (_currentPage < _totalPages) {
+      _loadPage(_currentPage + 1);
+    }
+  }
+
+  void _previousPage() {
+    if (_currentPage > 1) {
+      _loadPage(_currentPage - 1);
+    }
+  }
+
+  @override
+  void dispose() {
+    _document?.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Header with title and page info
+        Container(
+          padding: const EdgeInsets.all(16),
+          color: AppColors.surface,
+          child: Row(
+            children: [
+              const Icon(
+                Icons.picture_as_pdf,
+                size: 20,
+                color: Colors.red,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (_totalPages > 0)
+                      Text(
+                        'Documento PDF - $_totalPages ${_totalPages == 1 ? "pagina" : "pagine"}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // PDF content
+        Expanded(
+          child: _buildContent(),
+        ),
+
+        // Navigation controls
+        if (_totalPages > 1 && !_isLoading && _error == null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(
+                top: BorderSide(color: AppColors.divider, width: 1),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  onPressed: _currentPage > 1 ? _previousPage : null,
+                  icon: const Icon(Icons.chevron_left),
+                  color: AppColors.primary,
+                  disabledColor: AppColors.iconSecondary,
+                  tooltip: 'Pagina precedente',
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Pagina $_currentPage di $_totalPages',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                IconButton(
+                  onPressed: _currentPage < _totalPages ? _nextPage : null,
+                  icon: const Icon(Icons.chevron_right),
+                  color: AppColors.primary,
+                  disabledColor: AppColors.iconSecondary,
+                  tooltip: 'Pagina successiva',
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildContent() {
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 48,
+                color: Colors.red,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _error!,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_isLoading) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Caricamento PDF...',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_currentPageImage == null) {
+      return const Center(
+        child: Text(
+          'Nessuna pagina disponibile',
+          style: TextStyle(
+            fontSize: 13,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      );
+    }
+
+    return InteractiveViewer(
+      minScale: 0.5,
+      maxScale: 4.0,
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Image.memory(
+            _currentPageImage!.bytes,
+            fit: BoxFit.contain,
+          ),
+        ),
       ),
     );
   }

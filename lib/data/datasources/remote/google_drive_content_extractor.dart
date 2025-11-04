@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:excel/excel.dart' as excel_lib;
+import 'package:pdfx/pdfx.dart';
+import 'package:path_provider/path_provider.dart';
 import 'google_drive_service.dart';
 
 class StructuredContent {
@@ -10,6 +13,7 @@ class StructuredContent {
   final List<List<String>>? tableData;
   final List<String>? headers;
   final String title;
+  final List<int>? pdfBytes;  // For PDF rendering
 
   StructuredContent({
     required this.type,
@@ -17,10 +21,12 @@ class StructuredContent {
     this.tableData,
     this.headers,
     required this.title,
+    this.pdfBytes,
   });
 
   bool get isTable => type == 'table';
   bool get isText => type == 'text';
+  bool get isPdf => type == 'pdf';
 }
 
 class GoogleDriveContentExtractor {
@@ -42,6 +48,8 @@ class GoogleDriveContentExtractor {
         case 'application/x-excel':
         case 'application/x-msexcel':
           return await _extractExcelStructuredContent(file);
+        case 'application/pdf':
+          return await _extractPdfStructuredContent(file);
         default:
           final textContent = await extractContent(file);
           return StructuredContent(
@@ -81,7 +89,7 @@ class GoogleDriveContentExtractor {
           return await _extractExcelContent(file);
           
         case 'application/pdf':
-          return await _extractPdfMetadata(file);
+          return await _extractPdfContent(file);
           
         case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
         case 'application/msword':
@@ -630,17 +638,207 @@ Fine del file: ${file.name}
     return buffer.toString();
   }
   
-  Future<String> _extractPdfMetadata(DriveFile file) async {
-    return """
+  Future<StructuredContent> _extractPdfStructuredContent(DriveFile file) async {
+    try {
+      final bytes = await _driveService.downloadFile(file.id);
+      if (bytes == null || bytes.isEmpty) {
+        return StructuredContent(
+          type: 'text',
+          text: _getFileMetadata(file, reason: 'File PDF vuoto o non accessibile'),
+          title: file.name,
+        );
+      }
+
+      // Create a temporary file to store the PDF
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/temp_pdf_${file.id}.pdf');
+      await tempFile.writeAsBytes(bytes);
+
+      try {
+        // Open the PDF document to extract text for Claude
+        final document = await PdfDocument.openFile(tempFile.path);
+
+        final StringBuffer buffer = StringBuffer();
+        buffer.writeln('📕 ${file.name}');
+        buffer.writeln('Tipo: PDF Document');
+        buffer.writeln('Dimensione: ${file.size ?? "N/A"}');
+        buffer.writeln('Pagine: ${document.pagesCount}');
+        buffer.writeln('---\n');
+        buffer.writeln('CONTENUTO:\n');
+
+        // Extract text from each page
+        int pageCount = 0;
+        for (int i = 1; i <= document.pagesCount && pageCount < 100; i++) {
+          try {
+            final page = await document.getPage(i);
+            final pageText = await page.text;
+
+            if (pageText.isNotEmpty) {
+              buffer.writeln('--- Pagina $i ---');
+              buffer.writeln(pageText);
+              buffer.writeln('');
+            }
+
+            await page.close();
+            pageCount++;
+
+            // Check if we're approaching the max text length
+            if (buffer.length > maxTextLength - 1000) {
+              buffer.writeln('\n[... contenuto PDF troncato per limiti di spazio ...]');
+              break;
+            }
+          } catch (e) {
+            debugPrint('Errore nell\'estrazione della pagina $i: $e');
+          }
+        }
+
+        await document.close();
+
+        // Clean up temp file
+        await tempFile.delete();
+
+        buffer.writeln('---');
+        buffer.writeln('Fine del documento PDF: ${file.name}');
+
+        final content = buffer.toString();
+        final textForClaude = content.length > maxTextLength
+            ? content.substring(0, maxTextLength) + '\n\n[... contenuto PDF troncato ...]'
+            : content;
+
+        // Return structured content with both PDF bytes (for rendering) and text (for Claude)
+        return StructuredContent(
+          type: 'pdf',
+          text: textForClaude,
+          pdfBytes: bytes,
+          title: file.name,
+        );
+
+      } catch (e) {
+        // Clean up temp file on error
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
+
+        return StructuredContent(
+          type: 'text',
+          text: """
 📕 ${file.name}
 Tipo: PDF Document
 Dimensione: ${file.size ?? 'N/A'}
 Ultima modifica: ${file.modifiedTime}
 
-[PDF: Considera l'uso di una libreria PDF per estrarre il testo]
+⚠️ Errore nell'estrazione del testo dal PDF: ${e.toString()}
+
+Il PDF potrebbe essere:
+- Protetto da password
+- Composto solo da immagini (scansioni)
+- Danneggiato o in un formato non standard
+
+Link: ${file.webViewLink ?? 'N/A'}
+""",
+          title: file.name,
+        );
+      }
+    } catch (e) {
+      return StructuredContent(
+        type: 'text',
+        text: _getFileMetadata(file, reason: 'Errore: ${e.toString()}'),
+        title: file.name,
+      );
+    }
+  }
+
+  Future<String> _extractPdfContent(DriveFile file) async {
+    try {
+      final bytes = await _driveService.downloadFile(file.id);
+      if (bytes == null || bytes.isEmpty) {
+        return _getFileMetadata(file, reason: 'File PDF vuoto o non accessibile');
+      }
+
+      // Create a temporary file to store the PDF
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/temp_pdf_${file.id}.pdf');
+      await tempFile.writeAsBytes(bytes);
+
+      try {
+        // Open the PDF document
+        final document = await PdfDocument.openFile(tempFile.path);
+
+        final StringBuffer buffer = StringBuffer();
+        buffer.writeln('📕 ${file.name}');
+        buffer.writeln('Tipo: PDF Document');
+        buffer.writeln('Dimensione: ${file.size ?? "N/A"}');
+        buffer.writeln('Pagine: ${document.pagesCount}');
+        buffer.writeln('---\n');
+        buffer.writeln('CONTENUTO:\n');
+
+        // Extract text from each page
+        int pageCount = 0;
+        for (int i = 1; i <= document.pagesCount && pageCount < 100; i++) {
+          try {
+            final page = await document.getPage(i);
+            final pageText = await page.text;
+
+            if (pageText.isNotEmpty) {
+              buffer.writeln('--- Pagina $i ---');
+              buffer.writeln(pageText);
+              buffer.writeln('');
+            }
+
+            await page.close();
+            pageCount++;
+
+            // Check if we're approaching the max text length
+            if (buffer.length > maxTextLength - 1000) {
+              buffer.writeln('\n[... contenuto PDF troncato per limiti di spazio ...]');
+              break;
+            }
+          } catch (e) {
+            debugPrint('Errore nell\'estrazione della pagina $i: $e');
+          }
+        }
+
+        await document.close();
+
+        // Clean up temp file
+        await tempFile.delete();
+
+        buffer.writeln('---');
+        buffer.writeln('Fine del documento PDF: ${file.name}');
+
+        final content = buffer.toString();
+
+        if (content.length > maxTextLength) {
+          return content.substring(0, maxTextLength) + '\n\n[... contenuto PDF troncato ...]';
+        }
+
+        return content;
+
+      } catch (e) {
+        // Clean up temp file on error
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
+
+        return """
+📕 ${file.name}
+Tipo: PDF Document
+Dimensione: ${file.size ?? 'N/A'}
+Ultima modifica: ${file.modifiedTime}
+
+⚠️ Errore nell'estrazione del testo dal PDF: ${e.toString()}
+
+Il PDF potrebbe essere:
+- Protetto da password
+- Composto solo da immagini (scansioni)
+- Danneggiato o in un formato non standard
 
 Link: ${file.webViewLink ?? 'N/A'}
 """;
+      }
+    } catch (e) {
+      return _getFileMetadata(file, reason: 'Errore: ${e.toString()}');
+    }
   }
   
   Future<String> _extractWordMetadata(DriveFile file) async {
