@@ -648,14 +648,17 @@ Fine del file: ${file.name}
       }
 
       try {
-        // Open the PDF document to extract text for Claude
+        // Open the PDF document to get page count
         final document = await PdfDocument.openData(Uint8List.fromList(bytes));
+
+        final int pageCount = document.pagesCount;
+        await document.close();
 
         final StringBuffer buffer = StringBuffer();
         buffer.writeln('📕 ${file.name}');
         buffer.writeln('Tipo: PDF Document');
         buffer.writeln('Dimensione: ${file.size ?? "N/A"}');
-        buffer.writeln('Pagine: ${document.pagesCount}');
+        buffer.writeln('Pagine: $pageCount');
         buffer.writeln('---\n');
         buffer.writeln('CONTENUTO:\n');
 
@@ -664,9 +667,7 @@ Fine del file: ${file.name}
         buffer.writeln('\n[PDF text extraction not available - document will be displayed visually]');
         buffer.writeln('Per favore, consulta il contenuto visivo del PDF nell\'anteprima.');
 
-        await document.close();
-
-        buffer.writeln('---');
+        buffer.writeln('\n---');
         buffer.writeln('Fine del documento PDF: ${file.name}');
 
         final content = buffer.toString();
@@ -683,23 +684,21 @@ Fine del file: ${file.name}
         );
 
       } catch (e) {
+        // Even if we can't open the PDF for metadata, still try to display it visually
+        debugPrint('Error opening PDF for metadata: $e');
+
         return StructuredContent(
-          type: 'text',
+          type: 'pdf',
           text: """
 📕 ${file.name}
 Tipo: PDF Document
 Dimensione: ${file.size ?? 'N/A'}
-Ultima modifica: ${file.modifiedTime}
 
-⚠️ Errore nell'estrazione del testo dal PDF: ${e.toString()}
+[Impossibile estrarre metadati del PDF, ma il documento verrà visualizzato nell'anteprima]
 
-Il PDF potrebbe essere:
-- Protetto da password
-- Composto solo da immagini (scansioni)
-- Danneggiato o in un formato non standard
-
-Link: ${file.webViewLink ?? 'N/A'}
+Errore tecnico: ${e.toString()}
 """,
+          pdfBytes: bytes,  // Still provide bytes for visual rendering
           title: file.name,
         );
       }

@@ -2392,17 +2392,27 @@ class _PdfViewerInlineState extends State<_PdfViewerInline> {
 
       final document = await PdfDocument.openData(widget.pdfBytes);
 
-      setState(() {
-        _document = document;
-        _totalPages = document.pagesCount;
-      });
+      if (document == null) {
+        throw Exception('Impossibile aprire il documento PDF');
+      }
 
-      await _loadPage(_currentPage);
+      final pageCount = document.pagesCount;
+
+      if (mounted) {
+        setState(() {
+          _document = document;
+          _totalPages = pageCount;
+        });
+
+        await _loadPage(_currentPage);
+      }
     } catch (e) {
-      setState(() {
-        _error = 'Errore nel caricamento del PDF: ${e.toString()}';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Errore nel caricamento del PDF: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
     }
   }
 
