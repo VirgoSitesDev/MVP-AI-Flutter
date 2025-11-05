@@ -195,9 +195,25 @@ class SupabaseService {
         'content': m.content,
       }).toList();
 
+      // Detect if user is asking for a document/file creation
+      final isDocumentRequest = RegExp(
+        r'\b(crea|scrivi|genera|dammi|fammi|fai|voglio)\b.{0,30}\b(documento|file|codice|script|testo|csv|excel)',
+        caseSensitive: false,
+      ).hasMatch(message);
+
+      print('[SupabaseService] Document request detected: $isDocumentRequest');
+      print('[SupabaseService] Original message: $message');
+
+      // If asking for a document, inject format instruction into the message
+      String userMessage = message;
+      if (isDocumentRequest) {
+        userMessage = '$message\n\nIMPORTANT: Format your response using this structure:\n```language filename.ext\n[content]\n```\nExample: ```text document.txt';
+        print('[SupabaseService] Modified message: $userMessage');
+      }
+
       formattedHistory.add({
         'role': 'user',
-        'content': message,
+        'content': userMessage,
       });
 
       const systemPrompt = '''IMPORTANT: When the user asks you to create ANY document, file, or content, you MUST use this EXACT format:

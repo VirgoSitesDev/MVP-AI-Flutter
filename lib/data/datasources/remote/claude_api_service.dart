@@ -37,6 +37,18 @@ class ClaudeApiService {
     }
 
     try {
+      // Detect if user is asking for a document/file creation
+      final isDocumentRequest = RegExp(
+        r'\b(crea|scrivi|genera|dammi|fammi|fai|voglio|create|write|make|give)\b.{0,30}\b(documento|file|codice|script|testo|csv|excel|document|code)',
+        caseSensitive: false,
+      ).hasMatch(message);
+
+      // If asking for a document, inject format instruction into the message
+      String userMessage = message;
+      if (isDocumentRequest) {
+        userMessage = '$message\n\nIMPORTANT: Format your response using this structure:\n```language filename.ext\n[content]\n```\nExample: ```text document.txt';
+      }
+
       final messages = [
         ...history.map((m) => {
           'role': m.isUser ? 'user' : 'assistant',
@@ -44,7 +56,7 @@ class ClaudeApiService {
         }),
         {
           'role': 'user',
-          'content': message,
+          'content': userMessage,
         },
       ];
 
