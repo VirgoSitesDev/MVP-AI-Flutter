@@ -638,20 +638,41 @@ Fine del file: ${file.name}
   
   Future<StructuredContent> _extractPdfStructuredContent(DriveFile file) async {
     try {
+      debugPrint('📥 Downloading PDF: ${file.name} (ID: ${file.id})');
       final bytes = await _driveService.downloadFile(file.id);
-      if (bytes == null || bytes.isEmpty) {
+
+      if (bytes == null) {
+        debugPrint('❌ PDF download returned null for: ${file.name}');
         return StructuredContent(
           type: 'text',
-          text: _getFileMetadata(file, reason: 'File PDF vuoto o non accessibile'),
+          text: _getFileMetadata(file, reason: 'Impossibile scaricare il file PDF'),
           title: file.name,
         );
       }
 
+      if (bytes.isEmpty) {
+        debugPrint('❌ PDF download returned empty bytes for: ${file.name}');
+        return StructuredContent(
+          type: 'text',
+          text: _getFileMetadata(file, reason: 'File PDF vuoto'),
+          title: file.name,
+        );
+      }
+
+      debugPrint('✅ PDF downloaded successfully: ${file.name} (${bytes.length} bytes)');
+
       try {
         // Open the PDF document to get page count
+        debugPrint('📖 Opening PDF document with pdfx...');
         final document = await PdfDocument.openData(Uint8List.fromList(bytes));
 
+        if (document == null) {
+          throw Exception('Impossibile aprire il documento PDF - document is null');
+        }
+
+        debugPrint('✅ PDF document opened successfully');
         final int pageCount = document.pagesCount;
+        debugPrint('📄 PDF has $pageCount pages');
         await document.close();
 
         final StringBuffer buffer = StringBuffer();
@@ -721,6 +742,10 @@ Errore tecnico: ${e.toString()}
       try {
         // Open the PDF document
         final document = await PdfDocument.openData(Uint8List.fromList(bytes));
+
+        if (document == null) {
+          throw Exception('Impossibile aprire il documento PDF');
+        }
 
         final StringBuffer buffer = StringBuffer();
         buffer.writeln('📕 ${file.name}');

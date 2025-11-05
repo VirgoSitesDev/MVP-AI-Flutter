@@ -1093,6 +1093,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     Widget _buildPdfView(StructuredContent content) {
+      // Defensive check even though we already checked in _buildStructuredContent
+      if (content.pdfBytes == null || content.pdfBytes!.isEmpty) {
+        return _buildTextView(StructuredContent(
+          type: 'text',
+          title: content.title,
+          text: content.text ?? 'Errore: PDF non disponibile',
+        ));
+      }
+
       return _PdfViewerInline(
         pdfBytes: Uint8List.fromList(content.pdfBytes!),
         title: content.title,

@@ -267,13 +267,18 @@ class GoogleDriveService {
 
       final fileInfo = await getFile(fileId);
       if (fileInfo == null) {
+        debugPrint('❌ downloadFile: File not found: $fileId');
         throw Exception('File non trovato');
       }
 
+      debugPrint('📥 downloadFile: ${fileInfo.name} (${fileInfo.mimeType})');
+
       if (fileInfo.mimeType?.startsWith('application/vnd.google-apps') ?? false) {
+        debugPrint('🔄 downloadFile: Exporting Google Workspace file');
         return await exportGoogleFile(fileId, fileInfo.mimeType!);
       }
 
+      debugPrint('⬇️ downloadFile: Starting download...');
       final response = await _driveApi!.files.get(
         fileId,
         downloadOptions: drive.DownloadOptions.fullMedia,
@@ -284,8 +289,11 @@ class GoogleDriveService {
         bytes.addAll(chunk);
       }
 
+      debugPrint('✅ downloadFile: Downloaded ${bytes.length} bytes');
       return bytes;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('❌ downloadFile ERROR for $fileId: $e');
+      debugPrint('Stack trace: $stackTrace');
       return null;
     }
   }
