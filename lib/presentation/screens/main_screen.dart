@@ -19,6 +19,7 @@ import '../providers/google_drive_provider.dart';
 import '../widgets/google_drive_dialog.dart';
 import '../widgets/gmail_dialog.dart';
 import '../widgets/email_preview_widget.dart';
+import '../widgets/document_artifact_card.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -87,6 +88,54 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         _messageFocusNode.requestFocus();
       }
     }
+  }
+
+  void _insertMarkdown(String before, String after) {
+    final currentText = _messageController.text;
+    final selection = _messageController.selection;
+
+    if (selection.isValid) {
+      final selectedText = currentText.substring(selection.start, selection.end);
+      final newText = currentText.replaceRange(
+        selection.start,
+        selection.end,
+        '$before$selectedText$after',
+      );
+
+      _messageController.text = newText;
+      _messageController.selection = TextSelection.collapsed(
+        offset: selection.start + before.length + selectedText.length + after.length,
+      );
+    } else {
+      final cursorPos = selection.baseOffset;
+      final newText = currentText.substring(0, cursorPos) +
+                      before + after +
+                      currentText.substring(cursorPos);
+
+      _messageController.text = newText;
+      _messageController.selection = TextSelection.collapsed(
+        offset: cursorPos + before.length,
+      );
+    }
+
+    _messageFocusNode.requestFocus();
+  }
+
+  void _insertAtCursor(String text) {
+    final currentText = _messageController.text;
+    final selection = _messageController.selection;
+    final cursorPos = selection.baseOffset;
+
+    final newText = currentText.substring(0, cursorPos) +
+                    text +
+                    currentText.substring(cursorPos);
+
+    _messageController.text = newText;
+    _messageController.selection = TextSelection.collapsed(
+      offset: cursorPos + text.length,
+    );
+
+    _messageFocusNode.requestFocus();
   }
   
   @override
@@ -1271,69 +1320,133 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               top: BorderSide(color: AppColors.outline, width: 1),
             ),
           ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            decoration: BoxDecoration(
-              color: AppColors.inputBackground,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.inputBorder),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: KeyboardListener(
-                    focusNode: FocusNode(),
-                    onKeyEvent: (KeyEvent event) {
-                      if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
-                        if (_messageController.text.trim().isNotEmpty) {
-                          _sendMessage();
-                        }
-                      }
-                    },
-                    child: TextField(
-                      controller: _messageController,
-                      focusNode: _messageFocusNode,
-                      enabled: messageState is! AppMessageStateSending,
-                      maxLines: 1,
-                      textInputAction: TextInputAction.send,
-                      decoration: const InputDecoration(
-                        hintText: 'Chiedimi qualsiasi cosa',
-                        border: InputBorder.none,
-                        hintStyle: TextStyle(
-                          color: AppColors.textTertiary,
-                          fontSize: 14,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Formatting toolbar
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FA),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.divider),
+                ),
+                child: Row(
+                  children: [
+                    _buildFormatButton(
+                      icon: Icons.format_bold,
+                      tooltip: 'Grassetto',
+                      onPressed: () => _insertMarkdown('**', '**'),
+                    ),
+                    _buildFormatButton(
+                      icon: Icons.format_italic,
+                      tooltip: 'Corsivo',
+                      onPressed: () => _insertMarkdown('*', '*'),
+                    ),
+                    const SizedBox(width: 4),
+                    Container(
+                      width: 1,
+                      height: 20,
+                      color: AppColors.divider,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildFormatButton(
+                      icon: Icons.format_list_bulleted,
+                      tooltip: 'Lista puntata',
+                      onPressed: () => _insertAtCursor('\n- '),
+                    ),
+                    _buildFormatButton(
+                      icon: Icons.format_list_numbered,
+                      tooltip: 'Lista numerata',
+                      onPressed: () => _insertAtCursor('\n1. '),
+                    ),
+                    const SizedBox(width: 4),
+                    Container(
+                      width: 1,
+                      height: 20,
+                      color: AppColors.divider,
+                    ),
+                    const SizedBox(width: 4),
+                    _buildFormatButton(
+                      icon: Icons.link,
+                      tooltip: 'Link',
+                      onPressed: () => _insertMarkdown('[', '](url)'),
+                    ),
+                    _buildFormatButton(
+                      icon: Icons.functions,
+                      tooltip: 'Formula matematica',
+                      onPressed: () => _insertMarkdown(r'$', r'$'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Input field
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(
+                  color: AppColors.inputBackground,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.inputBorder),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: KeyboardListener(
+                        focusNode: FocusNode(),
+                        onKeyEvent: (KeyEvent event) {
+                          if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.enter) {
+                            if (_messageController.text.trim().isNotEmpty) {
+                              _sendMessage();
+                            }
+                          }
+                        },
+                        child: TextField(
+                          controller: _messageController,
+                          focusNode: _messageFocusNode,
+                          enabled: messageState is! AppMessageStateSending,
+                          maxLines: 1,
+                          textInputAction: TextInputAction.send,
+                          decoration: const InputDecoration(
+                            hintText: 'Chiedimi qualsiasi cosa',
+                            border: InputBorder.none,
+                            hintStyle: TextStyle(
+                              color: AppColors.textTertiary,
+                              fontSize: 14,
+                            ),
+                          ),
+                          style: const TextStyle(
+                            color: Color.fromARGB(255, 80, 80, 80),
+                            fontSize: 14,
+                          ),
+                          onSubmitted: (text) {
+                            _sendMessage();
+                          },
                         ),
                       ),
-                      style: const TextStyle(
-                        color: Color.fromARGB(255, 80, 80, 80),
-                        fontSize: 14,
+                    ),
+                    const SizedBox(width: 8),
+                    if (messageState is AppMessageStateSending)
+                      const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      IconButton(
+                        onPressed: _messageController.text.trim().isNotEmpty ? _sendMessage : null,
+                        icon: Icon(
+                          Icons.send,
+                          color: _messageController.text.trim().isNotEmpty
+                              ? AppColors.primary
+                              : AppColors.iconSecondary,
+                          size: 20,
+                        ),
                       ),
-                      onSubmitted: (text) {
-                        _sendMessage();
-                      },
-                    ),
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                if (messageState is AppMessageStateSending)
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else
-                  IconButton(
-                    onPressed: _messageController.text.trim().isNotEmpty ? _sendMessage : null,
-                    icon: Icon(
-                      Icons.send,
-                      color: _messageController.text.trim().isNotEmpty 
-                          ? AppColors.primary 
-                          : AppColors.iconSecondary,
-                      size: 20,
-                    ),
-                  ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ],
@@ -1495,11 +1608,30 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 ),
               ),
             ),
+          // Display artifacts if any
+          if (message.artifacts.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ...message.artifacts.map((artifact) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: DocumentArtifactCard(
+                artifact: artifact,
+                onTap: () {
+                  // TODO: Show in smart preview
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Apertura documento: ${artifact.title}'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                },
+              ),
+            )),
+          ],
         ],
       ),
     );
   }
-  
+
   Widget _buildReferenceItem({
     required String title,
     required String badge,
@@ -1723,6 +1855,31 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
+  }
+
+  Widget _buildFormatButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(4),
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            child: Icon(
+              icon,
+              size: 18,
+              color: AppColors.iconSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildUtilityItem(IconData icon, String title, {bool isRed = false}) {

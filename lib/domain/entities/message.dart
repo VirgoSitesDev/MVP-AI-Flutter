@@ -1,4 +1,5 @@
 import 'package:uuid/uuid.dart';
+import 'document_artifact.dart';
 
 class Message {
   final String id;
@@ -7,7 +8,8 @@ class Message {
   final DateTime timestamp;
   final MessageStatus status;
   final String? sessionId;
-  
+  final List<DocumentArtifact> artifacts;
+
   const Message({
     required this.id,
     required this.content,
@@ -15,6 +17,7 @@ class Message {
     required this.timestamp,
     this.status = MessageStatus.sent,
     this.sessionId,
+    this.artifacts = const [],
   });
 
   factory Message.user({
@@ -66,6 +69,7 @@ class Message {
     DateTime? timestamp,
     MessageStatus? status,
     String? sessionId,
+    List<DocumentArtifact>? artifacts,
   }) {
     return Message(
       id: id ?? this.id,
@@ -74,6 +78,7 @@ class Message {
       timestamp: timestamp ?? this.timestamp,
       status: status ?? this.status,
       sessionId: sessionId ?? this.sessionId,
+      artifacts: artifacts ?? this.artifacts,
     );
   }
   

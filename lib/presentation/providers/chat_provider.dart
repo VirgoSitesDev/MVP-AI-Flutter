@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/entities/chat_session.dart';
 import '../../domain/entities/message.dart';
 import '../../data/datasources/remote/supabase_service.dart';
+import '../../utils/artifact_parser.dart';
 import 'google_drive_provider.dart';
 import 'gmail_provider.dart';
 import '../../data/datasources/remote/claude_api_service.dart';
@@ -280,10 +281,20 @@ Istruzioni: Usa i file e le email forniti come contesto per rispondere alla doma
             .where((m) => m.id != tempAssistantMessage.id)
             .toList();
 
+        final responseContent = response['content'] ?? 'Mi dispiace, non ho ricevuto una risposta valida.';
+
+        // Parse artifacts from Claude's response
+        final artifacts = ArtifactParser.parseArtifacts(responseContent);
+
+        // Clean content by replacing code blocks with references
+        final displayContent = artifacts.isNotEmpty
+            ? ArtifactParser.getDisplayContent(responseContent, artifacts)
+            : responseContent;
+
         final assistantMessage = Message.assistant(
-          content: response['content'] ?? 'Mi dispiace, non ho ricevuto una risposta valida.',
+          content: displayContent,
           sessionId: state!.id,
-        );
+        ).copyWith(artifacts: artifacts);
 
         state = state!.copyWith(
           messages: [...messagesWithoutTemp, assistantMessage],
