@@ -35,6 +35,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   bool _isOrgPinsExpanded = true;
   bool _isUtilitiesExpanded = false;
   bool _isPreviewFullscreen = false;
+  bool _isConnectorsExpanded = true;
+  bool _isGoogleWorkspaceExpanded = false;
 
   DriveFile? _selectedFileForPreview;
   String? _previewContent;
@@ -444,7 +446,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                       const Divider(height: 1, color: AppColors.divider),
                       const SizedBox(height: 8),
 
-                      _buildGoogleConnectionSection(),
+                      _buildConnectorsSection(),
 
                       Container(
                         margin: const EdgeInsets.only(bottom: 8),
@@ -1653,12 +1655,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
-Widget _buildGoogleConnectionSection() {
-    final googleAuthState = ref.watch(googleAuthStateProvider);
-
+Widget _buildConnectorsSection() {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFFFAFBFC),
         borderRadius: BorderRadius.circular(8),
@@ -1667,41 +1666,155 @@ Widget _buildGoogleConnectionSection() {
           width: 1,
         ),
       ),
+      child: _buildExpandableSection(
+        icon: Icons.hub_outlined,
+        title: 'Connettori',
+        isExpanded: _isConnectorsExpanded,
+        onToggle: () => setState(() => _isConnectorsExpanded = !_isConnectorsExpanded),
+        children: [
+          _buildGoogleWorkspaceConnector(),
+          _buildPlaceholderConnector('Dropbox', Icons.cloud_outlined),
+          _buildPlaceholderConnector('Microsoft 365', Icons.business_outlined),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGoogleWorkspaceConnector() {
+    final googleAuthState = ref.watch(googleAuthStateProvider);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: AppColors.divider,
+          width: 1,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              SvgPicture.asset(
-                'assets/icons/google_logo.svg',
-                width: 16,
-                height: 16,
+          InkWell(
+            onTap: () => setState(() => _isGoogleWorkspaceExpanded = !_isGoogleWorkspaceExpanded),
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  SvgPicture.asset(
+                    'assets/icons/google_logo.svg',
+                    width: 16,
+                    height: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Google Workspace',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  _buildGoogleStatusBadge(googleAuthState),
+                  const SizedBox(width: 8),
+                  Icon(
+                    _isGoogleWorkspaceExpanded ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                    color: AppColors.iconSecondary,
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              const Text(
-                'Google Workspace',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const Spacer(),
-              _buildGoogleStatusBadge(googleAuthState),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Accesso separato per Drive, Gmail e altri servizi Google',
-            style: TextStyle(
-              fontSize: 10,
-              color: AppColors.textTertiary,
             ),
           ),
-          const SizedBox(height: 12),
-
-          _buildGoogleConnectionContent(googleAuthState),
+          if (_isGoogleWorkspaceExpanded) ...[
+            const Divider(height: 1, color: AppColors.divider),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Accesso separato per Drive, Gmail e altri servizi Google',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGoogleConnectionContent(googleAuthState),
+                ],
+              ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderConnector(String name, IconData icon) {
+    return Container(
+      margin: const EdgeInsets.only(top: 4, bottom: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: AppColors.divider,
+          width: 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: () {
+          // Placeholder - no action for now
+        },
+        borderRadius: BorderRadius.circular(6),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: AppColors.iconSecondary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.textTertiary,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: const Text(
+                  'PRESTO',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.expand_more,
+                size: 20,
+                color: AppColors.iconSecondary,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
