@@ -8,6 +8,7 @@ class ArtifactParser {
   /// Looks for code blocks with titles or special artifact markers
   static List<DocumentArtifact> parseArtifacts(String content) {
     final List<DocumentArtifact> artifacts = [];
+    final Set<String> processedContents = {}; // Track processed content to avoid duplicates
 
     // Pattern 1: Look for markdown code blocks with file names as titles
     // Example: ```python filename.py
@@ -23,8 +24,11 @@ class ArtifactParser {
       final possibleTitle = match.group(2)?.trim() ?? '';
       final codeContent = match.group(3) ?? '';
 
-      // Skip if content is empty or too short
+      // Skip if content is empty or too short for snippet
       if (codeContent.trim().length < 10) continue;
+
+      // Skip if we've already processed this content
+      if (processedContents.contains(codeContent.trim())) continue;
 
       String title = possibleTitle;
 
@@ -37,8 +41,9 @@ class ArtifactParser {
       if (hasExtension) {
         title = possibleTitle;
       }
-      // If code is substantial (>100 chars), create artifact with generated name
-      else if (codeContent.trim().length > 100) {
+      // If code is substantial (>50 chars), create artifact with generated name
+      // Lowered threshold from 100 to 50 to catch more documents
+      else if (codeContent.trim().length > 50) {
         final extension = _getExtension(language);
         title = possibleTitle.isNotEmpty && possibleTitle != language
             ? possibleTitle
@@ -48,6 +53,7 @@ class ArtifactParser {
         continue;
       }
 
+      processedContents.add(codeContent.trim());
       artifacts.add(DocumentArtifact(
         id: uuid.v4(),
         title: title,
@@ -59,18 +65,24 @@ class ArtifactParser {
 
     // Pattern 2: Look for explicit document creation phrases
     // Example: "Ecco il documento..." followed by code block
+    // Expanded with more Italian keywords including imperative and infinitive forms
     final documentCreationPattern = RegExp(
-      r'(?:ecco|ho creato|ti presento|ti ho preparato|ti invio|ti mostro)(?:\s+il)?\s+(?:documento|file|codice|testo)(?:\s+(.+?))?\s*[:\s]+```(\w+)?\n([\s\S]*?)```',
+      r'(?:ecco|ho creato|ho scritto|ho generato|creo|scrivo|genero|crei|scrivi|genera|creami|scrivimi|generami|ti presento|ti ho preparato|ti invio|ti mostro|ti ho fatto|ho fatto|ti allego|allego|ti do|ti fornisco|ti mando|ti creo|ti scrivo)(?:\s+(?:il|lo|la|un|uno|una))?\s+(?:documento|file|codice|testo|script|programma|esempio)(?:\s+(.+?))?\s*[:\s]+```(\w+)?\n([\s\S]*?)```',
       caseSensitive: false,
       multiLine: true,
     );
 
     final docMatches = documentCreationPattern.allMatches(content);
     for (final match in docMatches) {
-      final title = match.group(1) ?? 'Documento creato';
-      final language = match.group(2);
       final docContent = match.group(3) ?? '';
 
+      // Skip if we've already processed this content
+      if (processedContents.contains(docContent.trim())) continue;
+
+      final title = match.group(1) ?? 'Documento creato';
+      final language = match.group(2);
+
+      processedContents.add(docContent.trim());
       artifacts.add(DocumentArtifact(
         id: uuid.v4(),
         title: title,
@@ -122,16 +134,17 @@ class ArtifactParser {
 
     // Remove code blocks that were converted to artifacts
     for (final artifact in artifacts) {
-      // Remove the specific code block
+      // Remove the specific code block with the artifact's title
+      final escapedTitle = RegExp.escape(artifact.title);
       final pattern = RegExp(
-        r'```\w*\s*${RegExp.escape(artifact.title)}[\s\S]*?```',
+        '```\\w*\\s*$escapedTitle[\\s\\S]*?```',
         multiLine: true,
       );
       cleaned = cleaned.replaceAll(pattern, '');
 
       // Also try to remove document creation phrases
       final creationPattern = RegExp(
-        r'(?:ecco|ho creato|ti presento|ti ho preparato)(?:\s+il)?\s+(?:documento|file|codice)[:\s]+```\w*\n[\s\S]*?```',
+        r'(?:ecco|ho creato|ho scritto|ho generato|creo|scrivo|genero|crei|scrivi|genera|creami|scrivimi|generami|ti presento|ti ho preparato|ti invio|ti mostro|ti ho fatto|ho fatto|ti allego|allego|ti do|ti fornisco|ti mando|ti creo|ti scrivo)(?:\s+(?:il|lo|la|un|uno|una))?\s+(?:documento|file|codice|testo|script|programma|esempio)[:\s]+```\w*\n[\s\S]*?```',
         caseSensitive: false,
         multiLine: true,
       );

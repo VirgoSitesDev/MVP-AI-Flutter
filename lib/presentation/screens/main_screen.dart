@@ -20,6 +20,8 @@ import '../widgets/google_drive_dialog.dart';
 import '../widgets/gmail_dialog.dart';
 import '../widgets/email_preview_widget.dart';
 import '../widgets/document_artifact_card.dart';
+import '../providers/artifact_provider.dart';
+import '../../domain/entities/document_artifact.dart';
 
 class MainScreen extends ConsumerStatefulWidget {
   const MainScreen({super.key});
@@ -648,6 +650,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     Widget _buildSmartPreviewWindow() {
       final selectedFiles = ref.watch(selectedDriveFilesProvider);
       final selectedEmails = ref.watch(selectedGmailMessagesProvider);
+      final selectedArtifacts = ref.watch(selectedArtifactsProvider);
 
       return AnimatedContainer(
         duration: const Duration(milliseconds: 300),
@@ -683,8 +686,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   const SizedBox(width: 8),
                   Text(
                     selectedEmails.isNotEmpty
-                        ? 'Smart Preview - Documenti e Email Condivisi'
-                        : 'Smart Preview - Documenti Condivisi',
+                        ? 'Smart Preview - Documenti, Artifacts e Email'
+                        : selectedArtifacts.isNotEmpty
+                            ? 'Smart Preview - Artifacts'
+                            : 'Smart Preview - Documenti Condivisi',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -692,7 +697,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     ),
                   ),
                   const Spacer(),
-                  if (selectedFiles.isNotEmpty || selectedEmails.isNotEmpty) ...[
+                  if (selectedFiles.isNotEmpty || selectedEmails.isNotEmpty || selectedArtifacts.isNotEmpty) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -700,7 +705,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${selectedFiles.length + selectedEmails.length} elementi',
+                        '${selectedFiles.length + selectedEmails.length + selectedArtifacts.length} elementi',
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
@@ -754,8 +759,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
 
             Expanded(
-              child: (selectedFiles.isNotEmpty || selectedEmails.isNotEmpty)
-                  ? _buildPreviewArea(selectedFiles, selectedEmails)
+              child: (selectedFiles.isNotEmpty || selectedEmails.isNotEmpty || selectedArtifacts.isNotEmpty)
+                  ? _buildPreviewArea(selectedFiles, selectedEmails, selectedArtifacts)
                   : const Center(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -771,7 +776,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Nessun documento o email condiviso',
+                                'Nessun contenuto selezionato',
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500,
@@ -780,7 +785,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                               ),
                               SizedBox(height: 4),
                               Text(
-                                'Aggiungi file da Drive o email da Gmail',
+                                'Aggiungi file, email o visualizza artifacts',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: AppColors.textTertiary,
@@ -797,8 +802,20 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       );
     }
 
-    Widget _buildPreviewArea(List<DriveFile> selectedFiles, List<GmailMessage> selectedEmails) {
-      if (selectedFiles.isNotEmpty) {
+    Widget _buildPreviewArea(List<DriveFile> selectedFiles, List<GmailMessage> selectedEmails, List<DocumentArtifact> selectedArtifacts) {
+      // Prioritize artifacts, then files, then emails
+      if (selectedArtifacts.isNotEmpty) {
+        final artifactToPreview = selectedArtifacts.first;
+        return Column(
+          children: [
+            _buildCompactArtifactHeader(artifactToPreview),
+            const Divider(height: 1, color: AppColors.divider),
+            Expanded(
+              child: _buildArtifactPreview(artifactToPreview),
+            ),
+          ],
+        );
+      } else if (selectedFiles.isNotEmpty) {
         if (_selectedFileForPreview != null &&
             !selectedFiles.any((file) => file.id == _selectedFileForPreview!.id)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1616,13 +1633,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               child: DocumentArtifactCard(
                 artifact: artifact,
                 onTap: () {
-                  // TODO: Show in smart preview
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Apertura documento: ${artifact.title}'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
+                  // Show artifact in smart preview
+                  ref.read(selectedArtifactsProvider.notifier).setArtifact(artifact);
                 },
               ),
             )),
@@ -2643,6 +2655,116 @@ Widget _buildConnectorsSection() {
         ),
       ),
     );
+  }
+
+  Widget _buildCompactArtifactHeader(DocumentArtifact artifact) {
+    return Container(
+      height: 60,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: AppColors.surface,
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: _getArtifactColor(artifact).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Center(
+              child: Icon(
+                _getArtifactIcon(artifact),
+                size: 16,
+                color: _getArtifactColor(artifact),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  artifact.title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  '${artifact.language ?? 'text'} • ${artifact.fileName}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            onPressed: () {
+              ref.read(selectedArtifactsProvider.notifier).clearArtifacts();
+            },
+            tooltip: 'Chiudi anteprima',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildArtifactPreview(DocumentArtifact artifact) {
+    return Container(
+      color: Colors.white,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: SelectableText(
+          artifact.content,
+          style: TextStyle(
+            fontSize: 13,
+            color: AppColors.textPrimary,
+            fontFamily: artifact.type == 'code' ? 'monospace' : null,
+            height: 1.5,
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _getArtifactIcon(DocumentArtifact artifact) {
+    switch (artifact.type) {
+      case 'code':
+        return Icons.code;
+      case 'markdown':
+        return Icons.article;
+      case 'html':
+        return Icons.web;
+      case 'json':
+        return Icons.data_object;
+      case 'text':
+      default:
+        return Icons.description;
+    }
+  }
+
+  Color _getArtifactColor(DocumentArtifact artifact) {
+    switch (artifact.type) {
+      case 'code':
+        return const Color(0xFF4CAF50);
+      case 'markdown':
+        return const Color(0xFF2196F3);
+      case 'html':
+        return const Color(0xFFFF9800);
+      case 'json':
+        return const Color(0xFF9C27B0);
+      case 'text':
+      default:
+        return AppColors.iconSecondary;
+    }
   }
 
   String _extractEmailName(String email) {

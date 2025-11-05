@@ -1,9 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'dart:convert';
 import '../../domain/entities/document_artifact.dart';
 import '../../core/theme/colors.dart';
+import 'dart:io' if (dart.library.html) 'dart:html' as html;
 
 class DocumentArtifactCard extends StatelessWidget {
   final DocumentArtifact artifact;
@@ -181,16 +182,18 @@ class DocumentArtifactCard extends StatelessWidget {
 
   Future<void> _downloadFile(BuildContext context) async {
     try {
-      final directory = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
-      final filePath = '${directory.path}/${artifact.fileName}';
-      final file = File(filePath);
-
-      await file.writeAsString(artifact.content);
+      if (kIsWeb) {
+        // Web download using blob
+        _downloadForWeb();
+      } else {
+        // Mobile/Desktop download - not implemented for this platform
+        throw UnimplementedError('Download non disponibile per questa piattaforma');
+      }
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('File salvato: ${artifact.fileName}'),
+            content: Text('File scaricato: ${artifact.fileName}'),
             backgroundColor: AppColors.success,
             duration: const Duration(seconds: 3),
           ),
@@ -200,12 +203,32 @@ class DocumentArtifactCard extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Errore nel salvataggio: $e'),
+            content: Text('Errore nel download: $e'),
             backgroundColor: AppColors.error,
             duration: const Duration(seconds: 3),
           ),
         );
       }
+    }
+  }
+
+  void _downloadForWeb() {
+    if (kIsWeb) {
+      // Create a blob from the content
+      final bytes = utf8.encode(artifact.content);
+      final blob = html.Blob([bytes]);
+      final url = html.Url.createObjectUrlFromBlob(blob);
+
+      // Create a temporary anchor element and trigger download
+      final anchor = html.document.createElement('a') as html.AnchorElement
+        ..href = url
+        ..style.display = 'none'
+        ..download = artifact.fileName;
+
+      html.document.body?.children.add(anchor);
+      anchor.click();
+      html.document.body?.children.remove(anchor);
+      html.Url.revokeObjectUrl(url);
     }
   }
 }
