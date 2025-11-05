@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pdfx/pdfx.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../core/theme/colors.dart';
 import '../../domain/entities/gmail_message.dart';
 import '../../data/datasources/remote/supabase_service.dart';
@@ -35,7 +36,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   bool _isOrgPinsExpanded = true;
   bool _isUtilitiesExpanded = false;
   bool _isPreviewFullscreen = false;
-  bool _isConnectorsExpanded = true;
+  bool _isConnectorsExpanded = false;
   bool _isGoogleWorkspaceExpanded = false;
 
   DriveFile? _selectedFileForPreview;
@@ -534,20 +535,58 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
                       const SizedBox(height: 24),
 
-                      _buildExpandableSection(
-                        icon: Icons.lightbulb_outline,
-                        title: 'Scopri le funzionalità',
-                        isExpanded: _isUtilitiesExpanded,
-                        onToggle: () => setState(() => _isUtilitiesExpanded = !_isUtilitiesExpanded),
-                        children: [
-                          _buildUtilityItem(Icons.add_comment, 'Nuova conversazione'),
-                          _buildUtilityItem(Icons.article_outlined, 'Riassunto sessione'),
-                          _buildUtilityItem(Icons.close, 'Termina sessione', isRed: true),
-                        ],
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFAFBFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppColors.outline,
+                            width: 1,
+                          ),
+                        ),
+                        child: _buildExpandableSection(
+                          icon: Icons.lightbulb_outline,
+                          title: 'Scopri le funzionalità',
+                          isExpanded: _isUtilitiesExpanded,
+                          onToggle: () => setState(() => _isUtilitiesExpanded = !_isUtilitiesExpanded),
+                          children: [
+                            _buildUtilityItem(Icons.article_outlined, 'Riassunto sessione'),
+                            _buildUtilityItem(Icons.close, 'Termina sessione', isRed: true),
+                          ],
+                        ),
                       ),
 
                       const SizedBox(height: 16),
                     ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Nuova conversazione button at the bottom
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: AppColors.divider, width: 1),
+                ),
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    ref.read(currentChatSessionProvider.notifier).createNewSession();
+                  },
+                  icon: const Icon(Icons.add_comment, size: 18),
+                  label: const Text('Nuova conversazione'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                 ),
               ),
@@ -1379,13 +1418,81 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 ),
               ],
             )
-          else
+          else if (message.isUser)
             Text(
               message.content,
               style: const TextStyle(
                 fontSize: 14,
                 color: AppColors.textPrimary,
                 height: 1.5,
+              ),
+            )
+          else
+            MarkdownBody(
+              data: message.content,
+              selectable: true,
+              styleSheet: MarkdownStyleSheet(
+                p: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                  height: 1.5,
+                ),
+                code: TextStyle(
+                  fontSize: 13,
+                  backgroundColor: const Color(0xFFF5F5F5),
+                  color: AppColors.textPrimary,
+                  fontFamily: 'monospace',
+                ),
+                codeblockDecoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F5),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.divider),
+                ),
+                codeblockPadding: const EdgeInsets.all(12),
+                blockquote: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
+                blockquoteDecoration: BoxDecoration(
+                  color: const Color(0xFFFAFBFC),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border(
+                    left: BorderSide(color: AppColors.primary, width: 3),
+                  ),
+                ),
+                blockquotePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                h1: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+                h2: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+                h3: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+                listBullet: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textPrimary,
+                ),
+                strong: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+                em: const TextStyle(
+                  fontStyle: FontStyle.italic,
+                  color: AppColors.textPrimary,
+                ),
+                a: TextStyle(
+                  color: AppColors.primary,
+                  decoration: TextDecoration.underline,
+                ),
               ),
             ),
         ],
@@ -1469,9 +1576,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
           ),
         ),
-        if (isExpanded && children.isNotEmpty) 
+        if (isExpanded && children.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(left: 26, right: 12, bottom: 10),
+            padding: const EdgeInsets.only(left: 8, right: 8, bottom: 10),
             child: Column(children: children),
           ),
       ],
@@ -1684,7 +1791,7 @@ Widget _buildConnectorsSection() {
     final googleAuthState = ref.watch(googleAuthStateProvider);
 
     return Container(
-      margin: const EdgeInsets.only(top: 8, bottom: 4),
+      margin: const EdgeInsets.only(bottom: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(6),
@@ -1757,7 +1864,7 @@ Widget _buildConnectorsSection() {
 
   Widget _buildPlaceholderConnector(String name, IconData icon) {
     return Container(
-      margin: const EdgeInsets.only(top: 4, bottom: 4),
+      margin: const EdgeInsets.only(bottom: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(6),

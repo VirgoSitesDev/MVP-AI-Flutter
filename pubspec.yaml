@@ -52,7 +52,9 @@ dependencies:
   
   # UI - VERSIONI COMPATIBILI
   flutter_svg: ^2.0.9  # Versione compatibile con Dart 3.3.0
-  
+  google_fonts: ^6.1.0  # For IBM Plex Sans font
+  flutter_markdown: ^0.7.3+1  # For rendering Claude's markdown responses
+
   # Excel parsing
   excel: ^4.0.2  # Versione più vecchia
 
