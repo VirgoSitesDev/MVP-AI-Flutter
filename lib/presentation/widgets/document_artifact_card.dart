@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import 'dart:convert';
 import '../../domain/entities/document_artifact.dart';
 import '../../core/theme/colors.dart';
-import 'dart:io' if (dart.library.html) 'dart:html' as html;
+
+// Conditional import for web downloads
+import 'stub_download.dart' if (dart.library.html) 'dart:html' as html;
 
 class DocumentArtifactCard extends StatelessWidget {
   final DocumentArtifact artifact;
@@ -17,6 +19,25 @@ class DocumentArtifactCard extends StatelessWidget {
   });
 
   IconData get _fileIcon {
+    // Check language first for more specific icons
+    final lang = artifact.language?.toLowerCase() ?? '';
+
+    if (lang == 'text' || lang == 'txt') {
+      return Icons.description;
+    } else if (lang == 'markdown' || lang == 'md') {
+      return Icons.article;
+    } else if (lang == 'html') {
+      return Icons.web;
+    } else if (lang == 'json') {
+      return Icons.data_object;
+    } else if (lang == 'csv' || lang == 'excel') {
+      return Icons.table_chart;
+    } else if (lang == 'python' || lang == 'javascript' || lang == 'java' ||
+               lang == 'dart' || lang == 'typescript') {
+      return Icons.code;
+    }
+
+    // Fallback to type
     switch (artifact.type) {
       case 'code':
         return Icons.code;
@@ -33,6 +54,28 @@ class DocumentArtifactCard extends StatelessWidget {
   }
 
   Color get _fileColor {
+    // Check language first for more specific colors
+    final lang = artifact.language?.toLowerCase() ?? '';
+
+    if (lang == 'text' || lang == 'txt') {
+      return const Color(0xFF607D8B); // Blue grey
+    } else if (lang == 'markdown' || lang == 'md') {
+      return const Color(0xFF2196F3); // Blue
+    } else if (lang == 'html') {
+      return const Color(0xFFFF9800); // Orange
+    } else if (lang == 'json') {
+      return const Color(0xFF9C27B0); // Purple
+    } else if (lang == 'csv' || lang == 'excel') {
+      return const Color(0xFF4CAF50); // Green
+    } else if (lang == 'python') {
+      return const Color(0xFF4CAF50); // Green
+    } else if (lang == 'javascript' || lang == 'typescript') {
+      return const Color(0xFFFFC107); // Yellow/amber
+    } else if (lang == 'java' || lang == 'dart') {
+      return const Color(0xFF00BCD4); // Cyan
+    }
+
+    // Fallback to type
     switch (artifact.type) {
       case 'code':
         return const Color(0xFF4CAF50);

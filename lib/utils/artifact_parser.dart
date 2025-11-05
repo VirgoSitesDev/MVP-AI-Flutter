@@ -41,6 +41,21 @@ class ArtifactParser {
       if (hasExtension) {
         title = possibleTitle;
       }
+      // For text/markdown documents, be more lenient (create artifacts with lower threshold)
+      else if (language.toLowerCase() == 'text' ||
+               language.toLowerCase() == 'txt' ||
+               language.toLowerCase() == 'markdown' ||
+               language.toLowerCase() == 'md') {
+        // For text documents, even short content is valid (20+ chars)
+        if (codeContent.trim().length >= 20) {
+          final extension = _getExtension(language);
+          title = possibleTitle.isNotEmpty && possibleTitle != language
+              ? possibleTitle
+              : 'documento.$extension';
+        } else {
+          continue;
+        }
+      }
       // If code is substantial (>50 chars), create artifact with generated name
       // Lowered threshold from 100 to 50 to catch more documents
       else if (codeContent.trim().length > 50) {
@@ -123,6 +138,19 @@ class ArtifactParser {
       case 'text':
       case 'txt':
         return 'txt';
+      case 'csv':
+        return 'csv';
+      case 'xml':
+        return 'xml';
+      case 'yaml':
+      case 'yml':
+        return 'yml';
+      case 'sql':
+        return 'sql';
+      case 'shell':
+      case 'bash':
+      case 'sh':
+        return 'sh';
       default:
         return 'txt';
     }
