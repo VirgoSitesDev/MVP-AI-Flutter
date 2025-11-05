@@ -35,7 +35,7 @@ class ClaudeApiService {
     if (!hasApiKey) {
       throw Exception('Claude API key non configurata');
     }
-    
+
     try {
       final messages = [
         ...history.map((m) => {
@@ -47,10 +47,30 @@ class ClaudeApiService {
           'content': message,
         },
       ];
-      
+
+      const systemPrompt = '''Sei un assistente AI intelligente. Quando l'utente ti chiede di creare un documento, file, codice, o qualsiasi contenuto scaricabile:
+
+1. Scrivi una breve introduzione
+2. Poi crea il documento usando questo formato esatto:
+   ```linguaggio nomefile.estensione
+   [contenuto del documento]
+   ```
+
+Esempi:
+- Per Python: ```python calcolo_fibonacci.py
+- Per JavaScript: ```javascript app.js
+- Per HTML: ```html index.html
+- Per testo: ```text documento.txt
+- Per Markdown: ```markdown README.md
+
+IMPORTANTE: Il nome del file DEVE essere sulla stessa riga del linguaggio, separato da uno spazio.
+
+Questo permette all'utente di scaricare il documento creato.''';
+
       final response = await _dio.post('/messages', data: {
         'model': model,
         'max_tokens': maxTokens,
+        'system': systemPrompt,
         'messages': messages,
       });
       

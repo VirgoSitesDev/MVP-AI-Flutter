@@ -19,20 +19,42 @@ class ArtifactParser {
     final matches = codeBlockPattern.allMatches(content);
 
     for (final match in matches) {
-      final language = match.group(1);
-      final title = match.group(2)?.trim() ?? 'Documento senza titolo';
+      final language = match.group(1) ?? '';
+      final possibleTitle = match.group(2)?.trim() ?? '';
       final codeContent = match.group(3) ?? '';
 
-      // Only create artifact if there's a title or it looks like a file
-      if (title.isNotEmpty && title != language) {
-        artifacts.add(DocumentArtifact(
-          id: uuid.v4(),
-          title: title,
-          content: codeContent.trim(),
-          type: 'code',
-          language: language,
-        ));
+      // Skip if content is empty or too short
+      if (codeContent.trim().length < 10) continue;
+
+      String title = possibleTitle;
+
+      // Check if title looks like a filename (has extension)
+      final hasExtension = possibleTitle.contains('.') &&
+                          !possibleTitle.endsWith('.') &&
+                          possibleTitle.split('.').last.length <= 4;
+
+      // If we have a filename-like title, use it
+      if (hasExtension) {
+        title = possibleTitle;
       }
+      // If code is substantial (>100 chars), create artifact with generated name
+      else if (codeContent.trim().length > 100) {
+        final extension = _getExtension(language);
+        title = possibleTitle.isNotEmpty && possibleTitle != language
+            ? possibleTitle
+            : 'documento.$extension';
+      } else {
+        // Skip small code snippets without explicit filename
+        continue;
+      }
+
+      artifacts.add(DocumentArtifact(
+        id: uuid.v4(),
+        title: title,
+        content: codeContent.trim(),
+        type: 'code',
+        language: language,
+      ));
     }
 
     // Pattern 2: Look for explicit document creation phrases
@@ -59,6 +81,39 @@ class ArtifactParser {
     }
 
     return artifacts;
+  }
+
+  /// Helper to get file extension from language
+  static String _getExtension(String language) {
+    switch (language.toLowerCase()) {
+      case 'python':
+      case 'py':
+        return 'py';
+      case 'javascript':
+      case 'js':
+        return 'js';
+      case 'typescript':
+      case 'ts':
+        return 'ts';
+      case 'html':
+        return 'html';
+      case 'css':
+        return 'css';
+      case 'dart':
+        return 'dart';
+      case 'java':
+        return 'java';
+      case 'json':
+        return 'json';
+      case 'markdown':
+      case 'md':
+        return 'md';
+      case 'text':
+      case 'txt':
+        return 'txt';
+      default:
+        return 'txt';
+    }
   }
 
   /// Removes artifact content from the message to clean up display
