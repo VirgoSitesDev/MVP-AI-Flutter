@@ -8,6 +8,7 @@ import '../../domain/entities/chat_session.dart';
 import '../../domain/entities/message.dart';
 import '../../data/datasources/remote/supabase_service.dart';
 import 'google_drive_provider.dart';
+import 'gmail_provider.dart';
 import '../../data/datasources/remote/claude_api_service.dart';
 
 class SupabaseUserAccount {
@@ -183,12 +184,14 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
       }
 
       final selectedDriveFiles = _ref.read(selectedDriveFilesProvider);
+      final selectedEmails = _ref.read(selectedGmailMessagesProvider);
       String fileContext = '';
-      
+      String emailContext = '';
+
       if (selectedDriveFiles.isNotEmpty) {
-        
+
         final extractor = GoogleDriveContentExtractor();
-        
+
         try {
           fileContext = await extractor.extractMultipleFiles(selectedDriveFiles);
         } catch (e) {
@@ -200,14 +203,30 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
         }
       }
 
-      String fullMessage = content;
-      if (fileContext.isNotEmpty) {
-        fullMessage = """
-$fileContext
+      if (selectedEmails.isNotEmpty) {
+        emailContext = '\n\n=== EMAIL DI RIFERIMENTO ===\n\n';
 
+        for (final email in selectedEmails) {
+          emailContext += '--- EMAIL ${selectedEmails.indexOf(email) + 1} ---\n';
+          emailContext += 'Da: ${email.from}\n';
+          emailContext += 'A: ${email.to}\n';
+          emailContext += 'Oggetto: ${email.subject}\n';
+          emailContext += 'Data: ${email.date.day}/${email.date.month}/${email.date.year} ${email.date.hour}:${email.date.minute}\n';
+          emailContext += '\nContenuto:\n';
+          emailContext += email.bodyText.isNotEmpty ? email.bodyText : email.snippet;
+          emailContext += '\n\n';
+        }
+
+        emailContext += '=== FINE EMAIL ===\n\n';
+      }
+
+      String fullMessage = content;
+      if (fileContext.isNotEmpty || emailContext.isNotEmpty) {
+        fullMessage = """
+$fileContext$emailContext
 DOMANDA UTENTE: $content
 
-Istruzioni: Usa i file forniti come contesto per rispondere alla domanda. Se i file contengono informazioni rilevanti, citale nella risposta.
+Istruzioni: Usa i file e le email forniti come contesto per rispondere alla domanda. Se contengono informazioni rilevanti, citale nella risposta.
 """;
       }
     
