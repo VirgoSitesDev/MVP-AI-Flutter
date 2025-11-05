@@ -2422,15 +2422,32 @@ class _PdfViewerInlineState extends State<_PdfViewerInline> {
     try {
       setState(() {
         _isLoading = true;
+        _error = null;
       });
 
       final page = await _document!.getPage(pageNumber);
+
+      if (page.width <= 0 || page.height <= 0) {
+        await page.close();
+        throw Exception('Dimensioni pagina non valide');
+      }
+
       final pageImage = await page.render(
         width: page.width * 2,
         height: page.height * 2,
         format: PdfPageImageFormat.png,
       );
       await page.close();
+
+      // Verify the image was rendered successfully
+      if (pageImage == null) {
+        throw Exception('Impossibile renderizzare la pagina del PDF - rendering fallito');
+      }
+
+      // Verify the image has valid byte data
+      if (pageImage.bytes.isEmpty) {
+        throw Exception('Impossibile renderizzare la pagina del PDF - dati immagine vuoti');
+      }
 
       if (mounted) {
         setState(() {
@@ -2439,7 +2456,9 @@ class _PdfViewerInlineState extends State<_PdfViewerInline> {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Errore caricamento pagina PDF: $e');
+      print('Stack trace: $stackTrace');
       if (mounted) {
         setState(() {
           _error = 'Errore nel caricamento della pagina: ${e.toString()}';
@@ -2645,6 +2664,30 @@ class _PdfViewerInlineState extends State<_PdfViewerInline> {
           child: Image.memory(
             _currentPageImage!.bytes,
             fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                padding: const EdgeInsets.all(24),
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: Colors.red,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Impossibile visualizzare la pagina',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ),
