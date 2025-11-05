@@ -38,7 +38,7 @@ class ArtifactParser {
     // Pattern 2: Look for explicit document creation phrases
     // Example: "Ecco il documento..." followed by code block
     final documentCreationPattern = RegExp(
-      r'(?:ecco|ho creato|ti presento|ti ho preparato|ti invio|ti mostro)(?:\s+il)?\s+(?:documento|file|codice|testo)(?:\s+["\']([^"\']+)["\'])?[:\s]+```(\w+)?\n([\s\S]*?)```',
+      r'(?:ecco|ho creato|ti presento|ti ho preparato|ti invio|ti mostro)(?:\s+il)?\s+(?:documento|file|codice|testo)(?:\s+(.+?))?\s*[:\s]+```(\w+)?\n([\s\S]*?)```',
       caseSensitive: false,
       multiLine: true,
     );
