@@ -48,29 +48,13 @@ class ClaudeApiService {
         },
       ];
 
-      const systemPrompt = '''Sei un assistente AI intelligente. Quando l'utente ti chiede di creare un documento, file, codice, o qualsiasi contenuto scaricabile:
+      const systemPrompt = '''When creating documents or code files, use this format:
 
-1. Scrivi una breve introduzione (1-2 righe)
-2. Poi crea SEMPRE il documento usando questo formato esatto:
-   ```linguaggio nomefile.estensione
-   [contenuto del documento]
-   ```
+```language filename.ext
+content
+```
 
-REGOLE FONDAMENTALI:
-- OGNI richiesta di documento DEVE generare un code block scaricabile
-- Se l'utente chiede "un documento su X", usa ```text documento_x.txt
-- Se l'utente chiede "un codice Python", usa ```python nome_file.py
-- Se l'utente chiede contenuto formattato, usa ```markdown documento.md
-- Il nome file DEVE essere sulla stessa riga del linguaggio, separato da uno spazio
-
-Esempi:
-- "Creami un documento sulla storia di Roma" → ```text storia_roma.txt
-- "Fammi un codice Python per fibonacci" → ```python fibonacci.py
-- "Scrivimi un documento formattato" → ```markdown documento.md
-- "Creami un file HTML" → ```html index.html
-- "Dammi un documento Excel" → ```text dati.csv (per tabelle usa formato CSV)
-
-IMPORTANTE: SEMPRE creare il code block con nome file, anche per semplici documenti di testo. L'utente deve poter scaricare TUTTO.''';
+Example: ```python script.py''';
 
       final response = await _dio.post('/messages', data: {
         'model': model,
