@@ -283,8 +283,21 @@ Istruzioni: Usa i file e le email forniti come contesto per rispondere alla doma
 
         final responseContent = response['content'] ?? 'Mi dispiace, non ho ricevuto una risposta valida.';
 
+        // DEBUG: Print what Claude returned
+        print('=== CLAUDE RESPONSE ===');
+        print('Length: ${responseContent.length}');
+        print('Content: $responseContent');
+        print('======================');
+
         // Parse artifacts from Claude's response
         final artifacts = ArtifactParser.parseArtifacts(responseContent);
+
+        print('=== ARTIFACTS FOUND ===');
+        print('Count: ${artifacts.length}');
+        for (var a in artifacts) {
+          print('- ${a.title} (${a.language})');
+        }
+        print('======================');
 
         // Clean content by replacing code blocks with references
         final displayContent = artifacts.isNotEmpty

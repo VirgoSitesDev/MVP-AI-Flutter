@@ -48,13 +48,40 @@ class ClaudeApiService {
         },
       ];
 
-      const systemPrompt = '''When creating documents or code files, use this format:
+      const systemPrompt = '''IMPORTANT: When the user asks you to create ANY document, file, or content, you MUST use this EXACT format:
 
-```language filename.ext
-content
+```language filename.extension
+[file content here]
 ```
 
-Example: ```python script.py''';
+The filename MUST be on the same line as the language tag, separated by a space.
+
+Examples for CODE:
+```python fibonacci.py
+def fibonacci(n):
+    return n if n <= 1 else fibonacci(n-1) + fibonacci(n-2)
+```
+
+Examples for TEXT DOCUMENTS:
+```text document.txt
+This is a plain text document with content.
+```
+
+Examples for CSV/EXCEL:
+```csv data.csv
+Name,Age,City
+John,30,New York
+Jane,25,London
+```
+
+Examples for MARKDOWN:
+```markdown notes.md
+# My Notes
+This is a formatted document.
+```
+
+This works for ALL file types: code (py, js, java), documents (txt, md, csv, xml), and any other format.
+ALWAYS include the filename with extension. This is REQUIRED.''';
 
       final response = await _dio.post('/messages', data: {
         'model': model,
