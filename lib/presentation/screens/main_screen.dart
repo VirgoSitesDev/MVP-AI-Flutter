@@ -403,6 +403,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
+                        margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFAFBFC),
                           borderRadius: BorderRadius.circular(8),
@@ -417,123 +418,127 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                           isExpanded: _isPermanentReferencesExpanded,
                           onToggle: () => setState(() => _isPermanentReferencesExpanded = !_isPermanentReferencesExpanded),
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildConnectorsSection(),
-
-                                  Container(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFFAFBFC),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: AppColors.outline,
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: _buildExpandableSection(
-                                      icon: Icons.person_outline,
-                                      title: 'Le tue conversazioni',
-                                      isExpanded: _isPersonalPinsExpanded,
-                                      onToggle: () => setState(() => _isPersonalPinsExpanded = !_isPersonalPinsExpanded),
-                                      children: chatSessionsAsync.when(
-                                        data: (sessions) {
-                                          if (sessions.isEmpty) {
-                                            return [
-                                              const Padding(
-                                                padding: EdgeInsets.all(8.0),
-                                                child: Text(
-                                                  'Nessuna conversazione salvata',
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: AppColors.textTertiary,
-                                                    fontStyle: FontStyle.italic,
-                                                  ),
-                                                ),
-                                              ),
-                                            ];
-                                          }
-                                          return sessions.map((session) => _buildChatItem(
-                                            session: session,
-                                            isActive: currentSession?.id == session.id,
-                                          )).toList();
-                                        },
-                                        loading: () => [
-                                          const Center(
-                                            child: Padding(
-                                              padding: EdgeInsets.all(8.0),
-                                              child: SizedBox(
-                                                width: 16,
-                                                height: 16,
-                                                child: CircularProgressIndicator(strokeWidth: 2),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                        error: (error, _) => [
-                                          Padding(
-                                            padding: const EdgeInsets.all(8.0),
-                                            child: Text(
-                                              'Errore nel caricamento',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: AppColors.error,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-
-                                  Container(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFFAFBFC),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: AppColors.outline,
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: _buildExpandableSection(
-                                      icon: Icons.business_outlined,
-                                      title: 'Pin della tua organizzazione',
-                                      isExpanded: _isOrgPinsExpanded,
-                                      onToggle: () => setState(() => _isOrgPinsExpanded = !_isOrgPinsExpanded),
-                                      children: [],
-                                    ),
-                                  ),
-
-                                  const SizedBox(height: 24),
-
-                                  Container(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFFAFBFC),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: AppColors.outline,
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: _buildExpandableSection(
-                                      icon: Icons.lightbulb_outline,
-                                      title: 'Scopri le funzionalità',
-                                      isExpanded: _isUtilitiesExpanded,
-                                      onToggle: () => setState(() => _isUtilitiesExpanded = !_isUtilitiesExpanded),
-                                      children: [
-                                        _buildUtilityItem(Icons.article_outlined, 'Riassunto sessione'),
-                                        _buildUtilityItem(Icons.close, 'Termina sessione', isRed: true),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                            const Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: Text(
+                                'Nessun riferimento permanente',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textTertiary,
+                                  fontStyle: FontStyle.italic,
+                                ),
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+
+                      _buildConnectorsSection(),
+
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFAFBFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppColors.outline,
+                            width: 1,
+                          ),
+                        ),
+                        child: _buildExpandableSection(
+                          icon: Icons.person_outline,
+                          title: 'Le tue conversazioni',
+                          isExpanded: _isPersonalPinsExpanded,
+                          onToggle: () => setState(() => _isPersonalPinsExpanded = !_isPersonalPinsExpanded),
+                          children: chatSessionsAsync.when(
+                            data: (sessions) {
+                              if (sessions.isEmpty) {
+                                return [
+                                  const Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: Text(
+                                      'Nessuna conversazione salvata',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textTertiary,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ),
+                                ];
+                              }
+                              return sessions.map((session) => _buildChatItem(
+                                session: session,
+                                isActive: currentSession?.id == session.id,
+                              )).toList();
+                            },
+                            loading: () => [
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                ),
+                              ),
+                            ],
+                            error: (error, _) => [
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                  'Errore nel caricamento',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.error,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFAFBFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppColors.outline,
+                            width: 1,
+                          ),
+                        ),
+                        child: _buildExpandableSection(
+                          icon: Icons.business_outlined,
+                          title: 'Pin della tua organizzazione',
+                          isExpanded: _isOrgPinsExpanded,
+                          onToggle: () => setState(() => _isOrgPinsExpanded = !_isOrgPinsExpanded),
+                          children: [],
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFAFBFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppColors.outline,
+                            width: 1,
+                          ),
+                        ),
+                        child: _buildExpandableSection(
+                          icon: Icons.lightbulb_outline,
+                          title: 'Scopri le funzionalità',
+                          isExpanded: _isUtilitiesExpanded,
+                          onToggle: () => setState(() => _isUtilitiesExpanded = !_isUtilitiesExpanded),
+                          children: [
+                            _buildUtilityItem(Icons.article_outlined, 'Riassunto sessione'),
+                            _buildUtilityItem(Icons.close, 'Termina sessione', isRed: true),
                           ],
                         ),
                       ),
@@ -1594,6 +1599,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       decoration: BoxDecoration(
         color: isActive ? AppColors.hoverLight : Colors.transparent,
         borderRadius: BorderRadius.circular(4),
+        border: isActive ? Border(
+          left: BorderSide(
+            color: AppColors.success,
+            width: 3,
+          ),
+        ) : null,
       ),
       child: InkWell(
         onTap: () {
@@ -1601,7 +1612,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         },
         borderRadius: BorderRadius.circular(4),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+          padding: EdgeInsets.only(
+            top: 6,
+            bottom: 6,
+            left: isActive ? 12 : 8,
+            right: 8,
+          ),
           child: Row(
             children: [
               Expanded(
@@ -1612,7 +1628,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                       session.title,
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+                        fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                         color: isActive ? AppColors.primary : AppColors.textPrimary,
                       ),
                       maxLines: 1,
@@ -1629,46 +1645,19 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   ],
                 ),
               ),
-              if (isActive)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.success,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: const Text(
-                    'ATTIVA',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
               const SizedBox(width: 4),
-              PopupMenuButton<String>(
+              IconButton(
                 icon: const Icon(
-                  Icons.more_vert,
-                  size: 14,
+                  Icons.delete_outline,
+                  size: 16,
                   color: AppColors.iconSecondary,
                 ),
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete_outline, size: 16, color: AppColors.error),
-                        SizedBox(width: 8),
-                        Text('Elimina', style: TextStyle(color: AppColors.error)),
-                      ],
-                    ),
-                  ),
-                ],
-                onSelected: (value) {
-                  if (value == 'delete') {
-                    _showDeleteConfirmation(session);
-                  }
-                },
+                onPressed: () => _showDeleteConfirmation(session),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 24,
+                  minHeight: 24,
+                ),
               ),
             ],
           ),
@@ -2215,22 +2204,6 @@ Widget _buildConnectorsSection() {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppColors.badgeGoogleDrive,
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: const Text(
-              'G DRIVE',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
           InkWell(
             onTap: () {
               ref.read(selectedDriveFilesProvider.notifier).removeFile(file.id);
@@ -2638,22 +2611,6 @@ Widget _buildConnectorsSection() {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppColors.warning,
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: const Text(
-              'GMAIL',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(width: 4),
           InkWell(
             onTap: () {
               ref.read(selectedGmailMessagesProvider.notifier).removeMessage(email.id);
