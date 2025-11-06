@@ -79,8 +79,11 @@ class DropboxAuthService {
           'token_access_type': 'offline',  // Get refresh token
           'code_challenge': codeChallenge,
           'code_challenge_method': 'S256',
+          'scope': DropboxConfig.scopes.join(' '),
         },
       );
+
+      debugPrint('🔐 Requesting scopes: ${DropboxConfig.scopes.join(", ")}');
 
       // Open popup window for OAuth
       final width = 500;
