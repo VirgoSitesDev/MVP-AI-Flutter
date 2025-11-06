@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:ai_assistant_mvp/data/datasources/remote/google_drive_content_extractor.dart';
+import 'package:ai_assistant_mvp/data/datasources/remote/dropbox_content_extractor.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -10,6 +11,7 @@ import '../../data/datasources/remote/supabase_service.dart';
 import '../../utils/artifact_parser.dart';
 import 'google_drive_provider.dart';
 import 'gmail_provider.dart';
+import 'dropbox_provider.dart';
 import '../../data/datasources/remote/claude_api_service.dart';
 
 class SupabaseUserAccount {
@@ -185,8 +187,10 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
       }
 
       final selectedDriveFiles = _ref.read(selectedDriveFilesProvider);
+      final selectedDropboxFiles = _ref.read(selectedDropboxFilesProvider);
       final selectedEmails = _ref.read(selectedGmailMessagesProvider);
-      String fileContext = '';
+      String driveFileContext = '';
+      String dropboxFileContext = '';
       String emailContext = '';
 
       if (selectedDriveFiles.isNotEmpty) {
@@ -194,13 +198,28 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
         final extractor = GoogleDriveContentExtractor();
 
         try {
-          fileContext = await extractor.extractMultipleFiles(selectedDriveFiles);
+          driveFileContext = await extractor.extractMultipleFiles(selectedDriveFiles);
         } catch (e) {
-          fileContext = '\n\n--- FILE DI RIFERIMENTO ---\n';
+          driveFileContext = '\n\n--- FILE GOOGLE DRIVE DI RIFERIMENTO ---\n';
           for (final file in selectedDriveFiles) {
-            fileContext += '📎 ${file.name} (${file.fileTypeDescription})\n';
+            driveFileContext += '📎 ${file.name} (${file.fileTypeDescription})\n';
           }
-          fileContext += '--- FINE RIFERIMENTI ---\n\n';
+          driveFileContext += '--- FINE RIFERIMENTI ---\n\n';
+        }
+      }
+
+      if (selectedDropboxFiles.isNotEmpty) {
+
+        final extractor = DropboxContentExtractor();
+
+        try {
+          dropboxFileContext = await extractor.extractMultipleFiles(selectedDropboxFiles);
+        } catch (e) {
+          dropboxFileContext = '\n\n--- FILE DROPBOX DI RIFERIMENTO ---\n';
+          for (final file in selectedDropboxFiles) {
+            dropboxFileContext += '📎 ${file.name} (${file.fileTypeDescription})\n';
+          }
+          dropboxFileContext += '--- FINE RIFERIMENTI ---\n\n';
         }
       }
 
@@ -222,9 +241,9 @@ class ChatSessionNotifier extends StateNotifier<ChatSession?> {
       }
 
       String fullMessage = content;
-      if (fileContext.isNotEmpty || emailContext.isNotEmpty) {
+      if (driveFileContext.isNotEmpty || dropboxFileContext.isNotEmpty || emailContext.isNotEmpty) {
         fullMessage = """
-$fileContext$emailContext
+$driveFileContext$dropboxFileContext$emailContext
 DOMANDA UTENTE: $content
 
 Istruzioni: Usa i file e le email forniti come contesto per rispondere alla domanda. Se contengono informazioni rilevanti, citale nella risposta.

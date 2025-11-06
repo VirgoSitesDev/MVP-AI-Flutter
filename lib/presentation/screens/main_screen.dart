@@ -8,6 +8,7 @@ import 'package:pdfx/pdfx.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../core/theme/colors.dart';
 import '../../domain/entities/gmail_message.dart';
+import '../../domain/entities/dropbox_file.dart';
 import '../../data/datasources/remote/supabase_service.dart';
 import '../../domain/entities/chat_session.dart';
 import '../../domain/entities/message.dart';
@@ -16,7 +17,9 @@ import '../providers/gmail_provider.dart';
 import '../../data/datasources/remote/google_drive_service.dart';
 import '../../data/datasources/remote/google_drive_content_extractor.dart';
 import '../providers/google_drive_provider.dart';
+import '../providers/dropbox_provider.dart';
 import '../widgets/google_drive_dialog.dart';
+import '../widgets/dropbox_dialog.dart';
 import '../widgets/gmail_dialog.dart';
 import '../widgets/email_preview_widget.dart';
 import '../widgets/document_artifact_card.dart';
@@ -41,8 +44,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   // Smart preview is always open on the right side
   bool _isConnectorsExpanded = false;
   bool _isGoogleWorkspaceExpanded = false;
+  bool _isDropboxExpanded = false;
   bool _isSessionReferencesExpanded = true;
   bool _isPermanentReferencesExpanded = true;
+  String? _hoveredChatId;
 
   DriveFile? _selectedFileForPreview;
   String? _previewContent;
@@ -366,10 +371,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   children: [
                     Consumer(
                       builder: (context, ref, _) {
-                        final selectedFiles = ref.watch(selectedDriveFilesProvider);
+                        final selectedDriveFiles = ref.watch(selectedDriveFilesProvider);
+                        final selectedDropboxFiles = ref.watch(selectedDropboxFilesProvider);
                         final selectedEmails = ref.watch(selectedGmailMessagesProvider);
 
-                        if (selectedFiles.isEmpty && selectedEmails.isEmpty) {
+                        if (selectedDriveFiles.isEmpty && selectedDropboxFiles.isEmpty && selectedEmails.isEmpty) {
                           return const Padding(
                             padding: EdgeInsets.all(8.0),
                             child: Text(
@@ -385,7 +391,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
                         return Column(
                           children: [
-                            ...selectedFiles.map((file) => _buildDriveFileReference(file)),
+                            ...selectedDriveFiles.map((file) => _buildDriveFileReference(file)),
+                            ...selectedDropboxFiles.map((file) => _buildDropboxFileReference(file)),
                             ...selectedEmails.map((email) => _buildGmailMessageReference(email)),
                           ],
                         );
@@ -1594,72 +1601,80 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     required ChatSession session,
     required bool isActive,
   }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      decoration: BoxDecoration(
-        color: isActive ? AppColors.hoverLight : Colors.transparent,
-        borderRadius: BorderRadius.circular(4),
-        border: isActive ? Border(
-          left: BorderSide(
-            color: AppColors.success,
-            width: 3,
-          ),
-        ) : null,
-      ),
-      child: InkWell(
-        onTap: () {
-          ref.read(currentChatSessionProvider.notifier).loadSession(session);
-        },
-        borderRadius: BorderRadius.circular(4),
-        child: Padding(
-          padding: EdgeInsets.only(
-            top: 6,
-            bottom: 6,
-            left: isActive ? 12 : 8,
-            right: 8,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      session.title,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                        color: isActive ? AppColors.primary : AppColors.textPrimary,
+    final isHovered = _hoveredChatId == session.id;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hoveredChatId = session.id),
+      onExit: (_) => setState(() => _hoveredChatId = null),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.hoverLight : Colors.transparent,
+          borderRadius: BorderRadius.circular(4),
+          border: isActive ? Border(
+            left: BorderSide(
+              color: AppColors.success,
+              width: 3,
+            ),
+          ) : null,
+        ),
+        child: InkWell(
+          onTap: () {
+            ref.read(currentChatSessionProvider.notifier).loadSession(session);
+          },
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: EdgeInsets.only(
+              top: 6,
+              bottom: 6,
+              left: isActive ? 12 : 8,
+              right: 8,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        session.title,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                          color: isActive ? AppColors.primary : AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _formatSessionDate(session.updatedAt),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: AppColors.textTertiary,
+                      const SizedBox(height: 2),
+                      Text(
+                        _formatSessionDate(session.updatedAt),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textTertiary,
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+                if (isHovered) ...[
+                  const SizedBox(width: 4),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      size: 16,
+                      color: AppColors.iconSecondary,
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 4),
-              IconButton(
-                icon: const Icon(
-                  Icons.delete_outline,
-                  size: 16,
-                  color: AppColors.iconSecondary,
-                ),
-                onPressed: () => _showDeleteConfirmation(session),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 24,
-                  minHeight: 24,
-                ),
-              ),
-            ],
+                    onPressed: () => _showDeleteConfirmation(session),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 24,
+                      minHeight: 24,
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1778,10 +1793,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
 Widget _buildConnectorsSection() {
     final googleAuthState = ref.watch(googleAuthStateProvider);
+    final dropboxAuthState = ref.watch(dropboxAuthStateProvider);
 
     // Show red dot if none of the external services are connected
     final isGoogleConnected = googleAuthState is GoogleAuthAuthenticated;
-    final showRedDot = !isGoogleConnected; // No services connected
+    final isDropboxConnected = dropboxAuthState is DropboxAuthAuthenticated;
+    final showRedDot = !isGoogleConnected && !isDropboxConnected; // No services connected
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1801,7 +1818,7 @@ Widget _buildConnectorsSection() {
         showRedDot: showRedDot,
         children: [
           _buildGoogleWorkspaceConnector(),
-          _buildPlaceholderConnector('Dropbox', Icons.cloud_outlined),
+          _buildDropboxConnector(),
           _buildPlaceholderConnector('Microsoft 365', Icons.business_outlined),
         ],
       ),
@@ -2091,6 +2108,211 @@ Widget _buildConnectorsSection() {
     }
   }
 
+  Widget _buildDropboxConnector() {
+    final dropboxAuthState = ref.watch(dropboxAuthStateProvider);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: AppColors.divider,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _isDropboxExpanded = !_isDropboxExpanded),
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.cloud_outlined,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Dropbox',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  _buildDropboxStatusBadge(dropboxAuthState),
+                  const SizedBox(width: 8),
+                  Icon(
+                    _isDropboxExpanded ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                    color: AppColors.iconSecondary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_isDropboxExpanded) ...[
+            const Divider(height: 1, color: AppColors.divider),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Accedi al tuo account Dropbox per selezionare file',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildDropboxConnectionContent(dropboxAuthState),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDropboxStatusBadge(DropboxAuthState state) {
+    // Show red dot when NOT connected, no dot when connected
+    switch (state) {
+      case DropboxAuthAuthenticated():
+        // Connected - no dot
+        return const SizedBox.shrink();
+      default:
+        // Not connected - show red dot
+        return Container(
+          width: 8,
+          height: 8,
+          decoration: const BoxDecoration(
+            color: Color.fromARGB(255, 223, 4, 95),
+            shape: BoxShape.circle,
+          ),
+        );
+    }
+  }
+
+  Widget _buildDropboxConnectionContent(DropboxAuthState state) {
+    switch (state) {
+      case DropboxAuthAuthenticated(:final email):
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              email,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      _showDropboxSearch();
+                    },
+                    icon: const Icon(Icons.folder_open, size: 16),
+                    label: const Text(
+                      'Dropbox',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      minimumSize: const Size(0, 36),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: () {
+                    ref.read(dropboxAuthStateProvider.notifier).signOut();
+                  },
+                  icon: const Icon(Icons.logout, size: 16),
+                  label: const Text(
+                    'Disconnetti',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    minimumSize: const Size(0, 36),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      case DropboxAuthError(:final message):
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              message,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.error,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: TextButton.icon(
+                onPressed: () {
+                  ref.read(dropboxAuthStateProvider.notifier).signIn();
+                },
+                icon: const Icon(Icons.login, size: 16),
+                label: const Text(
+                  'Connetti Dropbox',
+                  style: TextStyle(fontSize: 12),
+                ),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  minimumSize: const Size(0, 36),
+                ),
+              ),
+            ),
+          ],
+        );
+      case DropboxAuthLoading():
+        return const Center(
+          child: SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        );
+      default:
+        return SizedBox(
+          width: double.infinity,
+          child: TextButton.icon(
+            onPressed: () {
+              ref.read(dropboxAuthStateProvider.notifier).signIn();
+            },
+            icon: const Icon(Icons.login, size: 16),
+            label: const Text(
+              'Connetti Dropbox',
+              style: TextStyle(fontSize: 12),
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              minimumSize: const Size(0, 36),
+            ),
+          ),
+        );
+    }
+  }
+
   void _showGoogleDriveSearch() async {
     try {
       final selectedFiles = await GoogleDriveDialog.show(context);
@@ -2120,6 +2342,42 @@ Widget _buildConnectorsSection() {
               label: 'Riprova',
               textColor: Colors.white,
               onPressed: () => _showGoogleDriveSearch(),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showDropboxSearch() async {
+    try {
+      final selectedFiles = await DropboxDialog.show(context);
+
+      if (selectedFiles != null && selectedFiles.isNotEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${selectedFiles.length} file aggiunti ai riferimenti'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Errore apertura Dropbox: $e');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore nell\'accesso a Dropbox: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Riprova',
+              textColor: Colors.white,
+              onPressed: () => _showDropboxSearch(),
             ),
           ),
         );
@@ -2207,6 +2465,61 @@ Widget _buildConnectorsSection() {
           InkWell(
             onTap: () {
               ref.read(selectedDriveFilesProvider.notifier).removeFile(file.id);
+            },
+            child: const Icon(
+              Icons.close,
+              size: 14,
+              color: AppColors.iconSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDropboxFileReference(DropboxFile file) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.outline),
+      ),
+      child: Row(
+        children: [
+          Text(
+            file.fileTypeIcon,
+            style: const TextStyle(fontSize: 16),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  file.name,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  file.fileTypeDescription,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: () {
+              ref.read(selectedDropboxFilesProvider.notifier).removeFile(file.id);
             },
             child: const Icon(
               Icons.close,
