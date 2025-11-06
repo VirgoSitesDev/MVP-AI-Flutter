@@ -718,49 +718,31 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           ],
         );
       } else if (selectedDriveFiles.isNotEmpty || selectedDropboxFiles.isNotEmpty) {
-        // Combined file handling for both Drive and Dropbox
-        final hasDriveFiles = selectedDriveFiles.isNotEmpty;
-        final hasDropboxFiles = selectedDropboxFiles.isNotEmpty;
+        // Determine which file to show
+        DriveFile? driveFileToShow;
+        DropboxFile? dropboxFileToShow;
 
-        // Check if selected file still exists in either list
+        // Check if currently selected files still exist
         if (_selectedFileForPreview != null &&
-            !selectedDriveFiles.any((file) => file.id == _selectedFileForPreview!.id)) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _selectedFileForPreview = null;
-                _selectedDropboxFileForPreview = null;
-                _previewContent = null;
-                _structuredPreviewContent = null;
-                _isLoadingPreview = false;
-              });
-            }
-          });
+            selectedDriveFiles.any((file) => file.id == _selectedFileForPreview!.id)) {
+          driveFileToShow = _selectedFileForPreview;
+        } else if (_selectedDropboxFileForPreview != null &&
+            selectedDropboxFiles.any((file) => file.id == _selectedDropboxFileForPreview!.id)) {
+          dropboxFileToShow = _selectedDropboxFileForPreview;
+        } else if (selectedDriveFiles.isNotEmpty) {
+          // Default to first Drive file
+          driveFileToShow = selectedDriveFiles.first;
+        } else {
+          // Default to first Dropbox file
+          dropboxFileToShow = selectedDropboxFiles.first;
         }
 
-        if (_selectedDropboxFileForPreview != null &&
-            !selectedDropboxFiles.any((file) => file.id == _selectedDropboxFileForPreview!.id)) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _selectedFileForPreview = null;
-                _selectedDropboxFileForPreview = null;
-                _previewContent = null;
-                _structuredPreviewContent = null;
-                _isLoadingPreview = false;
-              });
-            }
-          });
-        }
-
-        // Determine which file to preview
-        if (_selectedFileForPreview != null) {
-          // Drive file is selected
-          final fileToPreview = _selectedFileForPreview!;
-          if (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id) {
+        // Load the file if it's different from what we currently have
+        if (driveFileToShow != null) {
+          if (_selectedFileForPreview?.id != driveFileToShow.id) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted && (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id)) {
-                _loadFileContent(fileToPreview);
+              if (mounted) {
+                _loadFileContent(driveFileToShow!);
               }
             });
           }
@@ -771,22 +753,22 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 selectedDriveFiles: selectedDriveFiles,
                 selectedDropboxFiles: selectedDropboxFiles,
                 isDriveFile: true,
-                currentDriveFile: fileToPreview,
+                currentDriveFile: driveFileToShow,
               ),
               const Divider(height: 1, color: AppColors.divider),
               Expanded(
-                child: _buildFilePreviewSimple(fileToPreview),
+                child: _buildFilePreviewSimple(driveFileToShow),
               ),
             ],
           );
-        } else if (_selectedDropboxFileForPreview != null) {
-          // Dropbox file is selected
-          final fileToPreview = _selectedDropboxFileForPreview!;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              _loadDropboxFileContent(fileToPreview);
-            }
-          });
+        } else if (dropboxFileToShow != null) {
+          if (_selectedDropboxFileForPreview?.id != dropboxFileToShow.id) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                _loadDropboxFileContent(dropboxFileToShow!);
+              }
+            });
+          }
 
           return Column(
             children: [
@@ -794,61 +776,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 selectedDriveFiles: selectedDriveFiles,
                 selectedDropboxFiles: selectedDropboxFiles,
                 isDriveFile: false,
-                currentDropboxFile: fileToPreview,
+                currentDropboxFile: dropboxFileToShow,
               ),
               const Divider(height: 1, color: AppColors.divider),
               Expanded(
-                child: _buildDropboxFilePreviewSimple(fileToPreview),
+                child: _buildDropboxFilePreviewSimple(dropboxFileToShow),
               ),
             ],
           );
-        } else {
-          // No file selected, default to first available
-          if (hasDriveFiles) {
-            final fileToPreview = selectedDriveFiles.first;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                _loadFileContent(fileToPreview);
-              }
-            });
-
-            return Column(
-              children: [
-                _buildCompactFileSelectorUnified(
-                  selectedDriveFiles: selectedDriveFiles,
-                  selectedDropboxFiles: selectedDropboxFiles,
-                  isDriveFile: true,
-                  currentDriveFile: fileToPreview,
-                ),
-                const Divider(height: 1, color: AppColors.divider),
-                Expanded(
-                  child: _buildFilePreviewSimple(fileToPreview),
-                ),
-              ],
-            );
-          } else {
-            final fileToPreview = selectedDropboxFiles.first;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                _loadDropboxFileContent(fileToPreview);
-              }
-            });
-
-            return Column(
-              children: [
-                _buildCompactFileSelectorUnified(
-                  selectedDriveFiles: selectedDriveFiles,
-                  selectedDropboxFiles: selectedDropboxFiles,
-                  isDriveFile: false,
-                  currentDropboxFile: fileToPreview,
-                ),
-                const Divider(height: 1, color: AppColors.divider),
-                Expanded(
-                  child: _buildDropboxFilePreviewSimple(fileToPreview),
-                ),
-              ],
-            );
-          }
         }
       } else if (selectedEmails.isNotEmpty) {
         final emailToPreview = selectedEmails.first;

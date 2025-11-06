@@ -31,8 +31,8 @@ class GoogleDriveContentExtractor {
   final GoogleDriveService _driveService = GoogleDriveService();
   
   static const int maxFileSizeBytes = 10 * 1024 * 1024;
-  static const int maxTextLength = 100000;
-  static const int maxExcelRows = 1000;
+  static const int maxTextLength = 500000;  // 500K characters per file
+  static const int maxExcelRows = 5000;  // Increased from 1000
   
   Future<StructuredContent> extractStructuredContent(DriveFile file) async {
     try {
@@ -819,7 +819,7 @@ Link: ${file.webViewLink ?? 'N/A'}
     buffer.writeln('=== CONTESTO DAI FILE GOOGLE DRIVE ===\n');
     
     int totalSize = 0;
-    const int maxTotalSize = 200000;
+    const int maxTotalSize = 1000000;  // 1MB total context
     
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
