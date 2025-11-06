@@ -16,6 +16,7 @@ import '../providers/chat_provider.dart';
 import '../providers/gmail_provider.dart';
 import '../../data/datasources/remote/google_drive_service.dart';
 import '../../data/datasources/remote/google_drive_content_extractor.dart';
+import '../../data/datasources/remote/dropbox_content_extractor.dart';
 import '../providers/google_drive_provider.dart';
 import '../providers/dropbox_provider.dart';
 import '../widgets/google_drive_dialog.dart';
@@ -50,10 +51,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   String? _hoveredChatId;
 
   DriveFile? _selectedFileForPreview;
+  DropboxFile? _selectedDropboxFileForPreview;
   String? _previewContent;
   StructuredContent? _structuredPreviewContent;
+  StructuredDropboxContent? _structuredDropboxPreviewContent;
   bool _isLoadingPreview = false;
   final GoogleDriveContentExtractor _contentExtractor = GoogleDriveContentExtractor();
+  final DropboxContentExtractor _dropboxContentExtractor = DropboxContentExtractor();
 
   List<String> selectedEmails = [];
   
@@ -590,9 +594,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     Widget _buildSmartPreviewWindow() {
-      final selectedFiles = ref.watch(selectedDriveFilesProvider);
+      final selectedDriveFiles = ref.watch(selectedDriveFilesProvider);
+      final selectedDropboxFiles = ref.watch(selectedDropboxFilesProvider);
       final selectedEmails = ref.watch(selectedGmailMessagesProvider);
       final selectedArtifacts = ref.watch(selectedArtifactsProvider);
+
+      final totalFiles = selectedDriveFiles.length + selectedDropboxFiles.length;
 
       return Container(
         decoration: const BoxDecoration(
@@ -632,7 +639,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     ),
                   ),
                   const Spacer(),
-                  if (selectedFiles.isNotEmpty || selectedEmails.isNotEmpty || selectedArtifacts.isNotEmpty) ...[
+                  if (totalFiles > 0 || selectedEmails.isNotEmpty || selectedArtifacts.isNotEmpty) ...[
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -640,7 +647,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${selectedFiles.length + selectedEmails.length + selectedArtifacts.length} elementi',
+                        '${totalFiles + selectedEmails.length + selectedArtifacts.length} elementi',
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
@@ -654,8 +661,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
 
             Expanded(
-              child: (selectedFiles.isNotEmpty || selectedEmails.isNotEmpty || selectedArtifacts.isNotEmpty)
-                  ? _buildPreviewArea(selectedFiles, selectedEmails, selectedArtifacts)
+              child: (totalFiles > 0 || selectedEmails.isNotEmpty || selectedArtifacts.isNotEmpty)
+                  ? _buildPreviewArea(selectedDriveFiles, selectedDropboxFiles, selectedEmails, selectedArtifacts)
                   : const Center(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -697,7 +704,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       );
     }
 
-    Widget _buildPreviewArea(List<DriveFile> selectedFiles, List<GmailMessage> selectedEmails, List<DocumentArtifact> selectedArtifacts) {
+    Widget _buildPreviewArea(List<DriveFile> selectedDriveFiles, List<DropboxFile> selectedDropboxFiles, List<GmailMessage> selectedEmails, List<DocumentArtifact> selectedArtifacts) {
       // Prioritize artifacts, then files, then emails
       if (selectedArtifacts.isNotEmpty) {
         final artifactToPreview = selectedArtifacts.first;
@@ -710,13 +717,19 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
           ],
         );
-      } else if (selectedFiles.isNotEmpty) {
+      } else if (selectedDriveFiles.isNotEmpty || selectedDropboxFiles.isNotEmpty) {
+        // Combined file handling for both Drive and Dropbox
+        final hasDriveFiles = selectedDriveFiles.isNotEmpty;
+        final hasDropboxFiles = selectedDropboxFiles.isNotEmpty;
+
+        // Check if selected file still exists in either list
         if (_selectedFileForPreview != null &&
-            !selectedFiles.any((file) => file.id == _selectedFileForPreview!.id)) {
+            !selectedDriveFiles.any((file) => file.id == _selectedFileForPreview!.id)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               setState(() {
                 _selectedFileForPreview = null;
+                _selectedDropboxFileForPreview = null;
                 _previewContent = null;
                 _structuredPreviewContent = null;
                 _isLoadingPreview = false;
@@ -725,25 +738,118 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           });
         }
 
-        final fileToPreview = _selectedFileForPreview ?? selectedFiles.first;
-
-        if (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id) {
+        if (_selectedDropboxFileForPreview != null &&
+            !selectedDropboxFiles.any((file) => file.id == _selectedDropboxFileForPreview!.id)) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted && (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id)) {
-              _loadFileContent(fileToPreview);
+            if (mounted) {
+              setState(() {
+                _selectedFileForPreview = null;
+                _selectedDropboxFileForPreview = null;
+                _previewContent = null;
+                _structuredPreviewContent = null;
+                _isLoadingPreview = false;
+              });
             }
           });
         }
 
-        return Column(
-          children: [
-            _buildCompactFileSelector(selectedFiles, fileToPreview),
-            const Divider(height: 1, color: AppColors.divider),
-            Expanded(
-              child: _buildFilePreviewSimple(fileToPreview),
-            ),
-          ],
-        );
+        // Determine which file to preview
+        if (_selectedFileForPreview != null) {
+          // Drive file is selected
+          final fileToPreview = _selectedFileForPreview!;
+          if (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && (_selectedFileForPreview == null || _selectedFileForPreview!.id != fileToPreview.id)) {
+                _loadFileContent(fileToPreview);
+              }
+            });
+          }
+
+          return Column(
+            children: [
+              _buildCompactFileSelectorUnified(
+                selectedDriveFiles: selectedDriveFiles,
+                selectedDropboxFiles: selectedDropboxFiles,
+                isDriveFile: true,
+                currentDriveFile: fileToPreview,
+              ),
+              const Divider(height: 1, color: AppColors.divider),
+              Expanded(
+                child: _buildFilePreviewSimple(fileToPreview),
+              ),
+            ],
+          );
+        } else if (_selectedDropboxFileForPreview != null) {
+          // Dropbox file is selected
+          final fileToPreview = _selectedDropboxFileForPreview!;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _loadDropboxFileContent(fileToPreview);
+            }
+          });
+
+          return Column(
+            children: [
+              _buildCompactFileSelectorUnified(
+                selectedDriveFiles: selectedDriveFiles,
+                selectedDropboxFiles: selectedDropboxFiles,
+                isDriveFile: false,
+                currentDropboxFile: fileToPreview,
+              ),
+              const Divider(height: 1, color: AppColors.divider),
+              Expanded(
+                child: _buildDropboxFilePreviewSimple(fileToPreview),
+              ),
+            ],
+          );
+        } else {
+          // No file selected, default to first available
+          if (hasDriveFiles) {
+            final fileToPreview = selectedDriveFiles.first;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                _loadFileContent(fileToPreview);
+              }
+            });
+
+            return Column(
+              children: [
+                _buildCompactFileSelectorUnified(
+                  selectedDriveFiles: selectedDriveFiles,
+                  selectedDropboxFiles: selectedDropboxFiles,
+                  isDriveFile: true,
+                  currentDriveFile: fileToPreview,
+                ),
+                const Divider(height: 1, color: AppColors.divider),
+                Expanded(
+                  child: _buildFilePreviewSimple(fileToPreview),
+                ),
+              ],
+            );
+          } else {
+            final fileToPreview = selectedDropboxFiles.first;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                _loadDropboxFileContent(fileToPreview);
+              }
+            });
+
+            return Column(
+              children: [
+                _buildCompactFileSelectorUnified(
+                  selectedDriveFiles: selectedDriveFiles,
+                  selectedDropboxFiles: selectedDropboxFiles,
+                  isDriveFile: false,
+                  currentDropboxFile: fileToPreview,
+                ),
+                const Divider(height: 1, color: AppColors.divider),
+                Expanded(
+                  child: _buildDropboxFilePreviewSimple(fileToPreview),
+                ),
+              ],
+            );
+          }
+        }
       } else if (selectedEmails.isNotEmpty) {
         final emailToPreview = selectedEmails.first;
         return Column(
@@ -906,12 +1012,14 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
     Future<void> _loadFileContent(DriveFile file) async {
       _selectedFileForPreview = file;
+      _selectedDropboxFileForPreview = null;
 
       if (mounted) {
         setState(() {
           _isLoadingPreview = true;
           _previewContent = null;
           _structuredPreviewContent = null;
+          _structuredDropboxPreviewContent = null;
         });
       }
 
@@ -933,6 +1041,502 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           });
         }
       }
+    }
+
+    Future<void> _loadDropboxFileContent(DropboxFile file) async {
+      _selectedDropboxFileForPreview = file;
+      _selectedFileForPreview = null;
+
+      if (mounted) {
+        setState(() {
+          _isLoadingPreview = true;
+          _previewContent = null;
+          _structuredPreviewContent = null;
+          _structuredDropboxPreviewContent = null;
+        });
+      }
+
+      try {
+        final structuredContent = await _dropboxContentExtractor.extractStructuredContent(file);
+
+        if (mounted) {
+          setState(() {
+            _structuredDropboxPreviewContent = structuredContent;
+            _isLoadingPreview = false;
+          });
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            _previewContent = 'Errore nel caricamento del contenuto:\n\n${e.toString()}\n\nDettagli:\n- File: ${file.name}\n- ID: ${file.id}';
+            _structuredDropboxPreviewContent = null;
+            _isLoadingPreview = false;
+          });
+        }
+      }
+    }
+
+    Widget _buildDropboxFilePreviewSimple(DropboxFile file) {
+      return Container(
+        color: Colors.white,
+        child: _isLoadingPreview
+            ? const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text(
+                      'Caricamento anteprima...',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            : _structuredDropboxPreviewContent != null
+                ? _buildStructuredDropboxContent(_structuredDropboxPreviewContent!)
+                : _previewContent != null && _previewContent!.isNotEmpty
+                    ? SingleChildScrollView(
+                        padding: const EdgeInsets.all(16),
+                        child: SelectableText(
+                          _previewContent!,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textPrimary,
+                            fontFamily: 'monospace',
+                            height: 1.5,
+                          ),
+                        ),
+                      )
+                    : _buildDropboxPreviewPlaceholder(file),
+      );
+    }
+
+    Widget _buildDropboxPreviewPlaceholder(DropboxFile file) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              file.fileTypeIcon,
+              style: const TextStyle(fontSize: 48),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              file.name,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              file.fileTypeDescription,
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget _buildStructuredDropboxContent(StructuredDropboxContent content) {
+      if (content.isTable && content.tableData != null && content.headers != null) {
+        return _buildDropboxTableView(content);
+      } else if (content.isPdf && content.pdfBytes != null) {
+        return _buildDropboxPdfView(content);
+      } else {
+        return _buildDropboxTextView(content);
+      }
+    }
+
+    Widget _buildDropboxTableView(StructuredDropboxContent content) {
+      final headers = content.headers!;
+      final tableData = content.tableData!;
+
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              content.title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Tabella con ${tableData.length} righe e ${headers.length} colonne',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.outline),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  headingRowColor: MaterialStateProperty.all(AppColors.surface),
+                  border: TableBorder.all(
+                    color: AppColors.outline,
+                    width: 0.5,
+                  ),
+                  columnSpacing: 16,
+                  headingTextStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                  dataTextStyle: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textPrimary,
+                  ),
+                  columns: headers.map((header) => DataColumn(
+                    label: Text(header),
+                  )).toList(),
+                  rows: tableData.take(100).map((row) => DataRow(
+                    cells: List.generate(
+                      headers.length,
+                      (index) => DataCell(
+                        Text(
+                          index < row.length ? row[index] : '',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  )).toList(),
+                ),
+              ),
+            ),
+            if (tableData.length > 100)
+              Padding(
+                padding: const EdgeInsets.only(top: 16),
+                child: Text(
+                  'Mostrando le prime 100 righe di ${tableData.length}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    Widget _buildDropboxPdfView(StructuredDropboxContent content) {
+      return FutureBuilder<PdfDocument>(
+        future: PdfDocument.openData(Uint8List.fromList(content.pdfBytes!)),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError || !snapshot.hasData) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: AppColors.error),
+                  const SizedBox(height: 16),
+                  const Text('Errore nel caricamento del PDF'),
+                  if (snapshot.hasError)
+                    Text(
+                      snapshot.error.toString(),
+                      style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    ),
+                ],
+              ),
+            );
+          }
+
+          final document = snapshot.data!;
+          return Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: AppColors.surface,
+                child: Row(
+                  children: [
+                    const Icon(Icons.picture_as_pdf, color: AppColors.error),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            content.title,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${document.pagesCount} pagine',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: document.pagesCount,
+                  itemBuilder: (context, pageIndex) {
+                    return FutureBuilder<PdfPage>(
+                      future: document.getPage(pageIndex + 1),
+                      builder: (context, pageSnapshot) {
+                        if (!pageSnapshot.hasData) {
+                          return const SizedBox(
+                            height: 200,
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+
+                        final page = pageSnapshot.data!;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Pagina ${pageIndex + 1}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              FutureBuilder<PdfPageImage?>(
+                                future: page.render(
+                                  width: page.width * 2,
+                                  height: page.height * 2,
+                                  format: PdfPageImageFormat.png,
+                                ),
+                                builder: (context, imageSnapshot) {
+                                  if (!imageSnapshot.hasData) {
+                                    return const SizedBox(
+                                      height: 200,
+                                      child: Center(child: CircularProgressIndicator()),
+                                    );
+                                  }
+
+                                  final pageImage = imageSnapshot.data;
+                                  if (pageImage == null || pageImage.bytes.isEmpty) {
+                                    return const SizedBox(
+                                      height: 200,
+                                      child: Center(
+                                        child: Text('Errore rendering pagina'),
+                                      ),
+                                    );
+                                  }
+
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(color: AppColors.outline),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.memory(
+                                        Uint8List.fromList(pageImage.bytes),
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
+    Widget _buildDropboxTextView(StructuredDropboxContent content) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              content.title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            SelectableText(
+              content.text ?? 'Nessun contenuto disponibile',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.textPrimary,
+                fontFamily: 'monospace',
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget _buildCompactFileSelectorUnified({
+      required List<DriveFile> selectedDriveFiles,
+      required List<DropboxFile> selectedDropboxFiles,
+      required bool isDriveFile,
+      DriveFile? currentDriveFile,
+      DropboxFile? currentDropboxFile,
+    }) {
+      final totalFiles = selectedDriveFiles.length + selectedDropboxFiles.length;
+
+      return Container(
+        height: 60,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        color: AppColors.surface,
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Center(
+                child: Text(
+                  isDriveFile ? currentDriveFile!.fileTypeIcon : currentDropboxFile!.fileTypeIcon,
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    isDriveFile ? currentDriveFile!.name : currentDropboxFile!.name,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    isDriveFile ? currentDriveFile!.fileTypeDescription : currentDropboxFile!.fileTypeDescription,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (totalFiles > 1) ...[
+              Container(
+                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.outline),
+                  borderRadius: BorderRadius.circular(4),
+                  color: Colors.white,
+                ),
+                child: DropdownButton<String>(
+                  value: isDriveFile ? 'drive_${currentDriveFile!.id}' : 'dropbox_${currentDropboxFile!.id}',
+                  underline: const SizedBox(),
+                  icon: const Icon(Icons.arrow_drop_down, size: 20),
+                  items: [
+                    ...selectedDriveFiles.map((file) => DropdownMenuItem<String>(
+                      value: 'drive_${file.id}',
+                      child: Text(
+                        file.name,
+                        style: const TextStyle(fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    )),
+                    ...selectedDropboxFiles.map((file) => DropdownMenuItem<String>(
+                      value: 'dropbox_${file.id}',
+                      child: Text(
+                        file.name,
+                        style: const TextStyle(fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    )),
+                  ],
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      if (newValue.startsWith('drive_')) {
+                        final fileId = newValue.substring(6);
+                        final newFile = selectedDriveFiles.firstWhere((f) => f.id == fileId);
+                        setState(() {
+                          _selectedFileForPreview = newFile;
+                          _selectedDropboxFileForPreview = null;
+                        });
+                        _loadFileContent(newFile);
+                      } else if (newValue.startsWith('dropbox_')) {
+                        final fileId = newValue.substring(8);
+                        final newFile = selectedDropboxFiles.firstWhere((f) => f.id == fileId);
+                        setState(() {
+                          _selectedDropboxFileForPreview = newFile;
+                          _selectedFileForPreview = null;
+                        });
+                        _loadDropboxFileContent(newFile);
+                      }
+                    }
+                  },
+                  selectedItemBuilder: (BuildContext context) {
+                    return [
+                      ...selectedDriveFiles.map((_) => const SizedBox()),
+                      ...selectedDropboxFiles.map((_) => const SizedBox()),
+                    ];
+                  },
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textPrimary,
+                  ),
+                  dropdownColor: Colors.white,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
     }
 
     Widget _buildStructuredContent(StructuredContent content) {
