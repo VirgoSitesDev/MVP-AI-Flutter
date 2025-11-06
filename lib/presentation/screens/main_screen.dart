@@ -38,9 +38,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   bool _isPersonalPinsExpanded = true;
   bool _isOrgPinsExpanded = true;
   bool _isUtilitiesExpanded = false;
-  bool _isPreviewFullscreen = false;
+  // Smart preview is always open on the right side
   bool _isConnectorsExpanded = false;
   bool _isGoogleWorkspaceExpanded = false;
+  bool _isSessionReferencesExpanded = true;
+  bool _isPermanentReferencesExpanded = true;
 
   DriveFile? _selectedFileForPreview;
   String? _previewContent;
@@ -163,41 +165,16 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           _buildCustomHeader(),
 
           Expanded(
-            child: _isPreviewFullscreen
-                ? Row(
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 7,
+                  child: Column(
                     children: [
                       Expanded(
-                        flex: 7,
-                        child: Column(
+                        child: Row(
                           children: [
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  _buildLeftSidebar(),
-                                  Expanded(
-                                    child: _buildChatArea(chatSession, messageState),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        flex: 5,
-                        child: _buildSmartPreviewWindow(),
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      _buildLeftSidebar(),
-
-                      Expanded(
-                        child: Column(
-                          children: [
-                            _buildSmartPreviewWindow(),
-
+                            _buildLeftSidebar(),
                             Expanded(
                               child: _buildChatArea(chatSession, messageState),
                             ),
@@ -206,6 +183,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                       ),
                     ],
                   ),
+                ),
+                Expanded(
+                  flex: 5,
+                  child: _buildSmartPreviewWindow(),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -296,69 +280,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Consumer(
-                  builder: (context, ref, _) {
-                    final googleAuthState = ref.watch(googleAuthStateProvider);
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: switch (googleAuthState) {
-                          GoogleAuthAuthenticated() => AppColors.success.withOpacity(0.1),
-                          GoogleAuthLoading() => AppColors.warning.withOpacity(0.1),
-                          GoogleAuthError() => AppColors.error.withOpacity(0.1),
-                          _ => AppColors.textTertiary.withOpacity(0.1),
-                        },
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: switch (googleAuthState) {
-                            GoogleAuthAuthenticated() => AppColors.success,
-                            GoogleAuthLoading() => AppColors.warning,
-                            GoogleAuthError() => AppColors.error,
-                            _ => AppColors.textTertiary,
-                          },
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.drive_file_rename_outline,
-                            size: 12,
-                            color: switch (googleAuthState) {
-                              GoogleAuthAuthenticated() => AppColors.success,
-                              GoogleAuthLoading() => AppColors.warning,
-                              GoogleAuthError() => AppColors.error,
-                              _ => AppColors.textTertiary,
-                            },
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            switch (googleAuthState) {
-                              GoogleAuthAuthenticated() => 'Drive OK',
-                              GoogleAuthLoading() => 'Drive...',
-                              GoogleAuthError() => 'Drive KO',
-                              _ => 'Drive OFF',
-                            },
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: switch (googleAuthState) {
-                                GoogleAuthAuthenticated() => AppColors.success,
-                                GoogleAuthLoading() => AppColors.warning,
-                                GoogleAuthError() => AppColors.error,
-                                _ => AppColors.textTertiary,
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(width: 12),
-
                 PopupMenuButton(
                   icon: const Icon(Icons.more_vert, size: 20, color: AppColors.iconPrimary),
                   itemBuilder: (context) => [
@@ -428,54 +349,50 @@ class _MainScreenState extends ConsumerState<MainScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Riferimenti della Sessione',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.textTertiary,
-                      letterSpacing: 0.3,
-                    ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFAFBFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.outline,
+                    width: 1,
                   ),
-                  const SizedBox(height: 12),
-                  const Divider(height: 1, color: AppColors.divider),
-                  const SizedBox(height: 12),
+                ),
+                child: _buildExpandableSection(
+                  icon: Icons.link_outlined,
+                  title: 'Riferimenti della Sessione',
+                  isExpanded: _isSessionReferencesExpanded,
+                  onToggle: () => setState(() => _isSessionReferencesExpanded = !_isSessionReferencesExpanded),
+                  children: [
+                    Consumer(
+                      builder: (context, ref, _) {
+                        final selectedFiles = ref.watch(selectedDriveFilesProvider);
+                        final selectedEmails = ref.watch(selectedGmailMessagesProvider);
 
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final selectedFiles = ref.watch(selectedDriveFilesProvider);
-                      final selectedEmails = ref.watch(selectedGmailMessagesProvider);
-
-                      if (selectedFiles.isEmpty && selectedEmails.isEmpty && currentSession == null) {
-                        return const Text(
-                          'Nessun riferimento attivo',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textTertiary,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        );
-                      }
-
-                      return Column(
-                        children: [
-                          ...selectedFiles.map((file) => _buildDriveFileReference(file)),
-                          ...selectedEmails.map((email) => _buildGmailMessageReference(email)),
-
-                          if (currentSession != null)
-                            _buildReferenceItem(
-                              title: currentSession.title,
-                              badge: 'ATTIVA',
-                              badgeColor: AppColors.success,
+                        if (selectedFiles.isEmpty && selectedEmails.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Text(
+                              'Nessun riferimento attivo',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textTertiary,
+                                fontStyle: FontStyle.italic,
+                              ),
                             ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
+                          );
+                        }
+
+                        return Column(
+                          children: [
+                            ...selectedFiles.map((file) => _buildDriveFileReference(file)),
+                            ...selectedEmails.map((email) => _buildGmailMessageReference(email)),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
             Expanded(
@@ -485,23 +402,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Riferimenti Permanenti',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          color: AppColors.textTertiary,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      const Divider(height: 1, color: AppColors.divider),
-                      const SizedBox(height: 8),
-
-                      _buildConnectorsSection(),
-
                       Container(
-                        margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFAFBFC),
                           borderRadius: BorderRadius.circular(8),
@@ -511,99 +412,128 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                           ),
                         ),
                         child: _buildExpandableSection(
-                          icon: Icons.person_outline,
-                          title: 'Le tue conversazioni',
-                          isExpanded: _isPersonalPinsExpanded,
-                          onToggle: () => setState(() => _isPersonalPinsExpanded = !_isPersonalPinsExpanded),
-                          children: chatSessionsAsync.when(
-                            data: (sessions) {
-                              if (sessions.isEmpty) {
-                                return [
-                                  const Padding(
-                                    padding: EdgeInsets.all(8.0),
-                                    child: Text(
-                                      'Nessuna conversazione salvata',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.textTertiary,
-                                        fontStyle: FontStyle.italic,
+                          icon: Icons.bookmark_outline,
+                          title: 'Riferimenti Permanenti',
+                          isExpanded: _isPermanentReferencesExpanded,
+                          onToggle: () => setState(() => _isPermanentReferencesExpanded = !_isPermanentReferencesExpanded),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildConnectorsSection(),
+
+                                  Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFAFBFC),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: AppColors.outline,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: _buildExpandableSection(
+                                      icon: Icons.person_outline,
+                                      title: 'Le tue conversazioni',
+                                      isExpanded: _isPersonalPinsExpanded,
+                                      onToggle: () => setState(() => _isPersonalPinsExpanded = !_isPersonalPinsExpanded),
+                                      children: chatSessionsAsync.when(
+                                        data: (sessions) {
+                                          if (sessions.isEmpty) {
+                                            return [
+                                              const Padding(
+                                                padding: EdgeInsets.all(8.0),
+                                                child: Text(
+                                                  'Nessuna conversazione salvata',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: AppColors.textTertiary,
+                                                    fontStyle: FontStyle.italic,
+                                                  ),
+                                                ),
+                                              ),
+                                            ];
+                                          }
+                                          return sessions.map((session) => _buildChatItem(
+                                            session: session,
+                                            isActive: currentSession?.id == session.id,
+                                          )).toList();
+                                        },
+                                        loading: () => [
+                                          const Center(
+                                            child: Padding(
+                                              padding: EdgeInsets.all(8.0),
+                                              child: SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child: CircularProgressIndicator(strokeWidth: 2),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                        error: (error, _) => [
+                                          Padding(
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: Text(
+                                              'Errore nel caricamento',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: AppColors.error,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
-                                ];
-                              }
-                              return sessions.map((session) => _buildChatItem(
-                                session: session,
-                                isActive: currentSession?.id == session.id,
-                              )).toList();
-                            },
-                            loading: () => [
-                              const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.all(8.0),
-                                  child: SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+
+                                  Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFAFBFC),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: AppColors.outline,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: _buildExpandableSection(
+                                      icon: Icons.business_outlined,
+                                      title: 'Pin della tua organizzazione',
+                                      isExpanded: _isOrgPinsExpanded,
+                                      onToggle: () => setState(() => _isOrgPinsExpanded = !_isOrgPinsExpanded),
+                                      children: [],
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ],
-                            error: (error, _) => [
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Text(
-                                  'Errore nel caricamento',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.error,
+
+                                  const SizedBox(height: 24),
+
+                                  Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFAFBFC),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: AppColors.outline,
+                                        width: 1,
+                                      ),
+                                    ),
+                                    child: _buildExpandableSection(
+                                      icon: Icons.lightbulb_outline,
+                                      title: 'Scopri le funzionalità',
+                                      isExpanded: _isUtilitiesExpanded,
+                                      onToggle: () => setState(() => _isUtilitiesExpanded = !_isUtilitiesExpanded),
+                                      children: [
+                                        _buildUtilityItem(Icons.article_outlined, 'Riassunto sessione'),
+                                        _buildUtilityItem(Icons.close, 'Termina sessione', isRed: true),
+                                      ],
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFAFBFC),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: AppColors.outline,
-                            width: 1,
-                          ),
-                        ),
-                        child: _buildExpandableSection(
-                          icon: Icons.business_outlined,
-                          title: 'Pin della tua organizzazione',
-                          isExpanded: _isOrgPinsExpanded,
-                          onToggle: () => setState(() => _isOrgPinsExpanded = !_isOrgPinsExpanded),
-                          children: [],
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFAFBFC),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: AppColors.outline,
-                            width: 1,
-                          ),
-                        ),
-                        child: _buildExpandableSection(
-                          icon: Icons.lightbulb_outline,
-                          title: 'Scopri le funzionalità',
-                          isExpanded: _isUtilitiesExpanded,
-                          onToggle: () => setState(() => _isUtilitiesExpanded = !_isUtilitiesExpanded),
-                          children: [
-                            _buildUtilityItem(Icons.article_outlined, 'Riassunto sessione'),
-                            _buildUtilityItem(Icons.close, 'Termina sessione', isRed: true),
+                            ),
                           ],
                         ),
                       ),
@@ -652,19 +582,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       final selectedEmails = ref.watch(selectedGmailMessagesProvider);
       final selectedArtifacts = ref.watch(selectedArtifactsProvider);
 
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-        height: _isPreviewFullscreen ? double.infinity : 250,
-        decoration: BoxDecoration(
+      return Container(
+        decoration: const BoxDecoration(
           color: AppColors.previewBackground,
-          border: _isPreviewFullscreen
-              ? const Border(
-                  left: BorderSide(color: AppColors.previewBorder, width: 1),
-                )
-              : const Border(
-                  bottom: BorderSide(color: AppColors.previewBorder, width: 1),
-                ),
+          border: Border(
+            left: BorderSide(color: AppColors.previewBorder, width: 1),
+          ),
         ),
         child: Column(
           children: [
@@ -713,47 +636,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
                   ],
-                  Tooltip(
-                    message: _isPreviewFullscreen
-                        ? 'Esci dalla modalità schermo intero'
-                        : 'Modalità schermo intero',
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () {
-                          setState(() {
-                            _isPreviewFullscreen = !_isPreviewFullscreen;
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.all(8.0),
-                          decoration: BoxDecoration(
-                            color: _isPreviewFullscreen
-                                ? AppColors.primary.withOpacity(0.1)
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: _isPreviewFullscreen
-                                  ? AppColors.primary.withOpacity(0.3)
-                                  : Colors.transparent,
-                            ),
-                          ),
-                          child: Icon(
-                            _isPreviewFullscreen
-                                ? Icons.close_fullscreen
-                                : Icons.open_in_full,
-                            size: 20,
-                            color: _isPreviewFullscreen
-                                ? AppColors.primary
-                                : AppColors.iconPrimary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -1644,51 +1527,13 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     );
   }
 
-  Widget _buildReferenceItem({
-    required String title,
-    required String badge,
-    required Color badgeColor,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w400,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: badgeColor,
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: Text(
-              badge,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
   Widget _buildExpandableSection({
     required IconData icon,
     required String title,
     required bool isExpanded,
     required VoidCallback onToggle,
     required List<Widget> children,
+    bool showRedDot = false,
   }) {
     return Column(
       children: [
@@ -1711,6 +1556,17 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                     ),
                   ),
                 ),
+                if (showRedDot) ...[
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Color.fromARGB(255, 223, 4, 95),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 Icon(
                   isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
                   size: 18,
@@ -1932,6 +1788,12 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   }
 
 Widget _buildConnectorsSection() {
+    final googleAuthState = ref.watch(googleAuthStateProvider);
+
+    // Show red dot if none of the external services are connected
+    final isGoogleConnected = googleAuthState is GoogleAuthAuthenticated;
+    final showRedDot = !isGoogleConnected; // No services connected
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -1944,9 +1806,10 @@ Widget _buildConnectorsSection() {
       ),
       child: _buildExpandableSection(
         icon: Icons.hub_outlined,
-        title: 'Connettori',
+        title: 'Servizi Esterni',
         isExpanded: _isConnectorsExpanded,
         onToggle: () => setState(() => _isConnectorsExpanded = !_isConnectorsExpanded),
+        showRedDot: showRedDot,
         children: [
           _buildGoogleWorkspaceConnector(),
           _buildPlaceholderConnector('Dropbox', Icons.cloud_outlined),
@@ -2067,19 +1930,13 @@ Widget _buildConnectorsSection() {
                   ),
                 ),
               ),
+              // Red dot for not connected (placeholder services)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.textTertiary,
-                  borderRadius: BorderRadius.circular(3),
-                ),
-                child: const Text(
-                  'PRESTO',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                  ),
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: Color.fromARGB(255, 223, 4, 95),
+                  shape: BoxShape.circle,
                 ),
               ),
               const SizedBox(width: 8),
@@ -2096,69 +1953,19 @@ Widget _buildConnectorsSection() {
   }
 
   Widget _buildGoogleStatusBadge(GoogleAuthState state) {
+    // Show red dot when NOT connected, no dot when connected
     switch (state) {
       case GoogleAuthAuthenticated():
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: AppColors.success,
-            borderRadius: BorderRadius.circular(3),
-          ),
-          child: const Text(
-            'CONNESSO',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        );
-      case GoogleAuthLoading():
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: AppColors.warning,
-            borderRadius: BorderRadius.circular(3),
-          ),
-          child: const Text(
-            'CONNESSIONE...',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        );
-      case GoogleAuthError():
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: AppColors.error,
-            borderRadius: BorderRadius.circular(3),
-          ),
-          child: const Text(
-            'ERRORE',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        );
+        // Connected - no dot
+        return const SizedBox.shrink();
       default:
+        // Not connected - show red dot
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: AppColors.textTertiary,
-            borderRadius: BorderRadius.circular(3),
-          ),
-          child: const Text(
-            'NON CONNESSO',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-            ),
+          width: 8,
+          height: 8,
+          decoration: const BoxDecoration(
+            color: Color.fromARGB(255, 223, 4, 95),
+            shape: BoxShape.circle,
           ),
         );
     }
