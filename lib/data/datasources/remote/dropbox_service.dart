@@ -28,24 +28,34 @@ class DropboxService {
     try {
       _ensureAuthenticated();
 
+      debugPrint('📂 Listing Dropbox files for path: "${path}"');
+
+      final requestData = {
+        'path': path.isEmpty ? '' : path,
+        'limit': limit,
+        'include_mounted_folders': true,
+        'include_non_downloadable_files': false,
+      };
+
+      debugPrint('Request data: $requestData');
+
       final response = await _dio.post(
         '${DropboxConfig.apiEndpoint}/files/list_folder',
-        data: {
-          'path': path.isEmpty ? '' : path,
-          'limit': limit,
-          'include_mounted_folders': true,
-          'include_non_downloadable_files': false,
-        },
+        data: requestData,
         options: Options(
           headers: {
             'Authorization': 'Bearer ${_authService.accessToken}',
             'Content-Type': 'application/json',
           },
+          contentType: Headers.jsonContentType,
         ),
       );
 
+      debugPrint('✅ Dropbox API response status: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final entries = response.data['entries'] as List;
+        debugPrint('✅ Found ${entries.length} items');
         return entries
             .map((entry) => DropboxFile.fromJson(entry))
             .toList();
@@ -53,7 +63,12 @@ class DropboxService {
 
       return [];
     } catch (e) {
-      debugPrint('Error listing Dropbox files: $e');
+      debugPrint('❌ Error listing Dropbox files: $e');
+      if (e is DioException) {
+        debugPrint('Response data: ${e.response?.data}');
+        debugPrint('Status code: ${e.response?.statusCode}');
+        debugPrint('Request data: ${e.requestOptions.data}');
+      }
       rethrow;
     }
   }
@@ -65,6 +80,8 @@ class DropboxService {
   }) async {
     try {
       _ensureAuthenticated();
+
+      debugPrint('🔍 Searching Dropbox files with query: "$query"');
 
       final response = await _dio.post(
         '${DropboxConfig.apiEndpoint}/files/search_v2',
@@ -81,11 +98,15 @@ class DropboxService {
             'Authorization': 'Bearer ${_authService.accessToken}',
             'Content-Type': 'application/json',
           },
+          contentType: Headers.jsonContentType,
         ),
       );
 
+      debugPrint('✅ Search response status: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final matches = response.data['matches'] as List;
+        debugPrint('✅ Found ${matches.length} matches');
         return matches
             .map((match) {
               final metadata = match['metadata']['metadata'];
@@ -96,7 +117,11 @@ class DropboxService {
 
       return [];
     } catch (e) {
-      debugPrint('Error searching Dropbox files: $e');
+      debugPrint('❌ Error searching Dropbox files: $e');
+      if (e is DioException) {
+        debugPrint('Response data: ${e.response?.data}');
+        debugPrint('Status code: ${e.response?.statusCode}');
+      }
       rethrow;
     }
   }
