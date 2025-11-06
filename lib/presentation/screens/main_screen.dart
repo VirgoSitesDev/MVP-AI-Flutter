@@ -39,15 +39,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
   final FocusNode _messageFocusNode = FocusNode();
-  bool _isPersonalPinsExpanded = true;
-  bool _isOrgPinsExpanded = true;
+  bool _isPersonalPinsExpanded = false;
+  bool _isOrgPinsExpanded = false;
   bool _isUtilitiesExpanded = false;
   // Smart preview is always open on the right side
   bool _isConnectorsExpanded = false;
   bool _isGoogleWorkspaceExpanded = false;
   bool _isDropboxExpanded = false;
-  bool _isSessionReferencesExpanded = true;
-  bool _isPermanentReferencesExpanded = true;
+  bool _isSessionReferencesExpanded = false;
+  bool _isPermanentReferencesExpanded = false;
   String? _hoveredChatId;
 
   DriveFile? _selectedFileForPreview;
@@ -345,7 +345,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   Widget _buildLeftSidebar() {
       final chatSessionsAsync = ref.watch(chatSessionsProvider);
       final currentSession = ref.watch(currentChatSessionProvider);
-      
+
       return Container(
         width: 320,
         decoration: const BoxDecoration(
@@ -356,56 +356,97 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         ),
         child: Column(
           children: [
+            // BLOCK 1: Top section - Riferimenti sessione + Riferimenti permanenti
             Container(
               padding: const EdgeInsets.all(16),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFAFBFC),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppColors.outline,
-                    width: 1,
-                  ),
-                ),
-                child: _buildExpandableSection(
-                  icon: Icons.link_outlined,
-                  title: 'Riferimenti della Sessione',
-                  isExpanded: _isSessionReferencesExpanded,
-                  onToggle: () => setState(() => _isSessionReferencesExpanded = !_isSessionReferencesExpanded),
-                  children: [
-                    Consumer(
-                      builder: (context, ref, _) {
-                        final selectedDriveFiles = ref.watch(selectedDriveFilesProvider);
-                        final selectedDropboxFiles = ref.watch(selectedDropboxFilesProvider);
-                        final selectedEmails = ref.watch(selectedGmailMessagesProvider);
-
-                        if (selectedDriveFiles.isEmpty && selectedDropboxFiles.isEmpty && selectedEmails.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Text(
-                              'Nessun riferimento attivo',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textTertiary,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          );
-                        }
-
-                        return Column(
-                          children: [
-                            ...selectedDriveFiles.map((file) => _buildDriveFileReference(file)),
-                            ...selectedDropboxFiles.map((file) => _buildDropboxFileReference(file)),
-                            ...selectedEmails.map((email) => _buildGmailMessageReference(email)),
-                          ],
-                        );
-                      },
+              child: Column(
+                children: [
+                  // Riferimenti della Sessione
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFAFBFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.outline,
+                        width: 1,
+                      ),
                     ),
-                  ],
-                ),
+                    child: _buildExpandableSection(
+                      icon: Icons.link_outlined,
+                      title: 'Riferimenti della Sessione',
+                      isExpanded: _isSessionReferencesExpanded,
+                      onToggle: () => setState(() => _isSessionReferencesExpanded = !_isSessionReferencesExpanded),
+                      children: [
+                        Consumer(
+                          builder: (context, ref, _) {
+                            final selectedDriveFiles = ref.watch(selectedDriveFilesProvider);
+                            final selectedDropboxFiles = ref.watch(selectedDropboxFilesProvider);
+                            final selectedEmails = ref.watch(selectedGmailMessagesProvider);
+
+                            if (selectedDriveFiles.isEmpty && selectedDropboxFiles.isEmpty && selectedEmails.isEmpty) {
+                              return const Padding(
+                                padding: EdgeInsets.all(8.0),
+                                child: Text(
+                                  'Nessun riferimento attivo',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textTertiary,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              );
+                            }
+
+                            return Column(
+                              children: [
+                                ...selectedDriveFiles.map((file) => _buildDriveFileReference(file)),
+                                ...selectedDropboxFiles.map((file) => _buildDropboxFileReference(file)),
+                                ...selectedEmails.map((email) => _buildGmailMessageReference(email)),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // Riferimenti Permanenti
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFAFBFC),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.outline,
+                        width: 1,
+                      ),
+                    ),
+                    child: _buildExpandableSection(
+                      icon: Icons.bookmark_outline,
+                      title: 'Riferimenti Permanenti',
+                      isExpanded: _isPermanentReferencesExpanded,
+                      onToggle: () => setState(() => _isPermanentReferencesExpanded = !_isPermanentReferencesExpanded),
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Text(
+                            'Nessun riferimento permanente',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textTertiary,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
+
+            // Scrollable area with blocks 2 and 3
             Expanded(
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -413,37 +454,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFAFBFC),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: AppColors.outline,
-                            width: 1,
-                          ),
-                        ),
-                        child: _buildExpandableSection(
-                          icon: Icons.bookmark_outline,
-                          title: 'Riferimenti Permanenti',
-                          isExpanded: _isPermanentReferencesExpanded,
-                          onToggle: () => setState(() => _isPermanentReferencesExpanded = !_isPermanentReferencesExpanded),
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.all(8.0),
-                              child: Text(
-                                'Nessun riferimento permanente',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.textTertiary,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
+                      // BLOCK 2: Middle section - Servizi esterni + Le tue conversazioni
                       _buildConnectorsSection(),
 
                       Container(
@@ -511,6 +522,10 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         ),
                       ),
 
+                      // Visual separator between block 2 and block 3
+                      const SizedBox(height: 24),
+
+                      // BLOCK 3: Bottom section - Pin della tua organizzazione + Scopri le funzionalità
                       Container(
                         margin: const EdgeInsets.only(bottom: 8),
                         decoration: BoxDecoration(
@@ -529,8 +544,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                           children: [],
                         ),
                       ),
-
-                      const SizedBox(height: 24),
 
                       Container(
                         margin: const EdgeInsets.only(bottom: 8),
@@ -827,7 +840,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 : _previewContent != null && _previewContent!.isNotEmpty
                     ? SingleChildScrollView(
                         padding: const EdgeInsets.all(16),
-                        child: SelectableText(
+                        child: Text(
                           _previewContent!,
                           style: const TextStyle(
                             fontSize: 12,
@@ -1036,7 +1049,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 : _previewContent != null && _previewContent!.isNotEmpty
                     ? SingleChildScrollView(
                         padding: const EdgeInsets.all(16),
-                        child: SelectableText(
+                        child: Text(
                           _previewContent!,
                           style: const TextStyle(
                             fontSize: 12,
@@ -1334,7 +1347,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            SelectableText(
+            Text(
               content.text ?? 'Nessun contenuto disponibile',
               style: const TextStyle(
                 fontSize: 12,
@@ -1619,7 +1632,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
             ),
             const SizedBox(height: 16),
 
-            SelectableText(
+            Text(
               text,
               style: const TextStyle(
                 fontSize: 12,
@@ -1852,27 +1865,42 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                             }
                           }
                         },
-                        child: TextField(
-                          controller: _messageController,
-                          focusNode: _messageFocusNode,
-                          enabled: messageState is! AppMessageStateSending,
-                          maxLines: 1,
-                          textInputAction: TextInputAction.send,
-                          decoration: const InputDecoration(
-                            hintText: 'Chiedimi qualsiasi cosa',
-                            border: InputBorder.none,
-                            hintStyle: TextStyle(
-                              color: AppColors.textTertiary,
+                        child: Focus(
+                          onKey: (node, event) {
+                            if (event is RawKeyDownEvent) {
+                              // Check if Enter key is pressed without Shift
+                              if (event.logicalKey == LogicalKeyboardKey.enter &&
+                                  !event.isShiftPressed) {
+                                // Send message when Enter is pressed without Shift
+                                if (_messageController.text.trim().isNotEmpty) {
+                                  _sendMessage();
+                                  return KeyEventResult.handled;
+                                }
+                              }
+                            }
+                            return KeyEventResult.ignored;
+                          },
+                          child: TextField(
+                            controller: _messageController,
+                            focusNode: _messageFocusNode,
+                            enabled: messageState is! AppMessageStateSending,
+                            maxLines: null,
+                            minLines: 1,
+                            keyboardType: TextInputType.multiline,
+                            textInputAction: TextInputAction.newline,
+                            decoration: const InputDecoration(
+                              hintText: 'Chiedimi qualsiasi cosa (Shift+Enter per andare a capo)',
+                              border: InputBorder.none,
+                              hintStyle: TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: 14,
+                              ),
+                            ),
+                            style: const TextStyle(
+                              color: Color.fromARGB(255, 80, 80, 80),
                               fontSize: 14,
                             ),
                           ),
-                          style: const TextStyle(
-                            color: Color.fromARGB(255, 80, 80, 80),
-                            fontSize: 14,
-                          ),
-                          onSubmitted: (text) {
-                            _sendMessage();
-                          },
                         ),
                       ),
                     ),
@@ -3272,7 +3300,7 @@ Widget _buildConnectorsSection() {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  SelectableText(
+                  Text(
                     email.bodyText.isNotEmpty ? email.bodyText : email.snippet,
                     style: const TextStyle(
                       fontSize: 12,
@@ -3354,7 +3382,7 @@ Widget _buildConnectorsSection() {
       color: Colors.white,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: SelectableText(
+        child: Text(
           artifact.content,
           style: TextStyle(
             fontSize: 13,

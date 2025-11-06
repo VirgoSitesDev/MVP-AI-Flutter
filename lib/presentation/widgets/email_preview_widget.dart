@@ -155,7 +155,7 @@ class EmailPreviewWidget extends StatelessWidget {
   Widget _buildTextContent() {
     final content = email.bodyText.isNotEmpty ? email.bodyText : email.snippet;
 
-    return SelectableText(
+    return Text(
       content,
       style: const TextStyle(
         fontSize: 14,

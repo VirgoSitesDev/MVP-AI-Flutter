@@ -109,8 +109,8 @@ class MessageBubble extends StatelessWidget {
     if (message.content.isEmpty && message.status == MessageStatus.sending) {
       return const SizedBox.shrink();
     }
-    
-    return SelectableText(
+
+    return Text(
       message.content,
       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
         color: message.isUser ? Colors.white : AppColors.textPrimary,
