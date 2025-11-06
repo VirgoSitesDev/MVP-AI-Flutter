@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/constants/dropbox_config.dart';
 import 'package:dio/dio.dart';
 import 'dart:html' as html;
+import 'package:crypto/crypto.dart';
 
 class DropboxAuthService {
   static final DropboxAuthService _instance = DropboxAuthService._internal();
@@ -103,15 +104,23 @@ class DropboxAuthService {
       late StreamSubscription subscription;
       subscription = html.window.onMessage.listen((event) async {
         try {
+          debugPrint('📬 Received message event: ${event.data}');
           final data = event.data;
           if (data is Map && data['type'] == 'dropbox_oauth_callback') {
+            debugPrint('✅ Dropbox OAuth callback received');
             final code = data['code'] as String?;
+            final error = data['error'] as String?;
 
-            if (code != null) {
+            if (error != null) {
+              debugPrint('❌ OAuth error: $error');
+              completer.complete(false);
+            } else if (code != null) {
+              debugPrint('✅ Authorization code received, exchanging for token...');
               // Exchange code for access token
               final success = await _exchangeCodeForToken(code, codeVerifier);
               completer.complete(success);
             } else {
+              debugPrint('❌ No code or error in callback');
               completer.complete(false);
             }
 
@@ -119,7 +128,7 @@ class DropboxAuthService {
             popup.close();
           }
         } catch (e) {
-          debugPrint('Error handling OAuth callback: $e');
+          debugPrint('❌ Error handling OAuth callback: $e');
           completer.complete(false);
           subscription.cancel();
         }
@@ -143,6 +152,9 @@ class DropboxAuthService {
 
   Future<bool> _exchangeCodeForToken(String code, String codeVerifier) async {
     try {
+      debugPrint('🔄 Exchanging authorization code for token...');
+      debugPrint('Code: ${code.substring(0, 10)}...');
+
       final response = await _dio.post(
         DropboxConfig.tokenEndpoint,
         data: {
@@ -158,11 +170,15 @@ class DropboxAuthService {
         ),
       );
 
+      debugPrint('Token exchange response status: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         _accessToken = response.data['access_token'];
+        debugPrint('✅ Access token received successfully');
 
         // Get user info
         await _fetchUserInfo();
+        debugPrint('✅ User info fetched: $_userEmail');
 
         // Store token
         final prefs = await SharedPreferences.getInstance();
@@ -174,12 +190,18 @@ class DropboxAuthService {
           await prefs.setString(_nameKey, _userName!);
         }
 
+        debugPrint('✅ Token and user info stored successfully');
         return true;
       }
 
+      debugPrint('❌ Token exchange failed with status: ${response.statusCode}');
       return false;
     } catch (e) {
-      debugPrint('Error exchanging code for token: $e');
+      debugPrint('❌ Error exchanging code for token: $e');
+      if (e is DioException) {
+        debugPrint('Response data: ${e.response?.data}');
+        debugPrint('Status code: ${e.response?.statusCode}');
+      }
       return false;
     }
   }
@@ -241,7 +263,8 @@ class DropboxAuthService {
   }
 
   String _generateCodeChallenge(String verifier) {
-    // For simplicity, using plain method (in production, use S256)
-    return verifier;
+    final bytes = utf8.encode(verifier);
+    final digest = sha256.convert(bytes);
+    return base64UrlEncode(digest.bytes).replaceAll('=', '');
   }
 }

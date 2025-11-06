@@ -46,6 +46,7 @@ dependencies:
   uuid: ^4.2.1
   intl: ^0.18.1  # Versione più vecchia
   mime: ^1.0.6
+  crypto: ^3.0.3
 
   # HTML rendering for emails
   flutter_html: ^3.0.0-beta.2
