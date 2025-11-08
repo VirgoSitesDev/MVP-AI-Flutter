@@ -1096,11 +1096,16 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     Widget _buildStructuredDropboxContent(StructuredDropboxContent content) {
+      debugPrint('📦 _buildStructuredDropboxContent - type: ${content.type}, isPdf: ${content.isPdf}, hasPdfBytes: ${content.pdfBytes != null}, pdfBytesLength: ${content.pdfBytes?.length ?? 0}');
+
       if (content.isTable && content.tableData != null && content.headers != null) {
+        debugPrint('  → Rendering as TABLE (Dropbox)');
         return _buildDropboxTableView(content);
       } else if (content.isPdf && content.pdfBytes != null) {
+        debugPrint('  → Rendering as PDF (Dropbox) with ${content.pdfBytes!.length} bytes');
         return _buildDropboxPdfView(content);
       } else {
+        debugPrint('  → Rendering as TEXT (Dropbox fallback)');
         return _buildDropboxTextView(content);
       }
     }
@@ -1189,8 +1194,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     Widget _buildDropboxPdfView(StructuredDropboxContent content) {
+      debugPrint('🔍 _buildDropboxPdfView called - pdfBytes: ${content.pdfBytes != null ? "${content.pdfBytes!.length} bytes" : "NULL"}');
+
       final pdfBytes = content.pdfBytes;
       if (pdfBytes == null || pdfBytes.isEmpty) {
+        debugPrint('❌ Dropbox PDF bytes are null or empty');
         return const Center(
           child: Text(
             'Dati PDF non disponibili',
@@ -1199,6 +1207,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         );
       }
 
+      debugPrint('✅ Opening Dropbox PDF document with ${pdfBytes.length} bytes');
       return FutureBuilder<PdfDocument?>(
         future: PdfDocument.openData(Uint8List.fromList(pdfBytes)),
         builder: (context, snapshot) {
@@ -1498,11 +1507,16 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     Widget _buildStructuredContent(StructuredContent content) {
+      debugPrint('📄 _buildStructuredContent - type: ${content.type}, isPdf: ${content.isPdf}, hasPdfBytes: ${content.pdfBytes != null}, pdfBytesLength: ${content.pdfBytes?.length ?? 0}');
+
       if (content.isTable && content.tableData != null && content.headers != null) {
+        debugPrint('  → Rendering as TABLE');
         return _buildTableView(content);
       } else if (content.isPdf && content.pdfBytes != null) {
+        debugPrint('  → Rendering as PDF with ${content.pdfBytes!.length} bytes');
         return _buildPdfView(content);
       } else {
+        debugPrint('  → Rendering as TEXT (fallback)');
         return _buildTextView(content);
       }
     }
@@ -1657,8 +1671,11 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     Widget _buildPdfView(StructuredContent content) {
+      debugPrint('🔍 _buildPdfView called - pdfBytes: ${content.pdfBytes != null ? "${content.pdfBytes!.length} bytes" : "NULL"}');
+
       // Defensive check even though we already checked in _buildStructuredContent
       if (content.pdfBytes == null || content.pdfBytes!.isEmpty) {
+        debugPrint('❌ PDF bytes are null or empty, showing error text instead');
         return _buildTextView(StructuredContent(
           type: 'text',
           title: content.title,
@@ -1666,6 +1683,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         ));
       }
 
+      debugPrint('✅ Creating _PdfViewerInline widget with ${content.pdfBytes!.length} bytes');
       return _PdfViewerInline(
         pdfBytes: Uint8List.fromList(content.pdfBytes!),
         title: content.title,

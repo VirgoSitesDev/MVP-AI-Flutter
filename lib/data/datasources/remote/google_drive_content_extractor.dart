@@ -697,6 +697,7 @@ Fine del file: ${file.name}
             : content;
 
         // Return structured content with both PDF bytes (for rendering) and text (for Claude)
+        debugPrint('✅ Returning StructuredContent for PDF - type: pdf, bytesLength: ${bytes.length}, title: ${file.name}');
         return StructuredContent(
           type: 'pdf',
           text: textForClaude,
@@ -708,6 +709,7 @@ Fine del file: ${file.name}
         // Even if we can't open the PDF for metadata, still try to display it visually
         debugPrint('Error opening PDF for metadata: $e');
 
+        debugPrint('⚠️ PDF metadata extraction failed, but returning bytes anyway - bytesLength: ${bytes.length}');
         return StructuredContent(
           type: 'pdf',
           text: """

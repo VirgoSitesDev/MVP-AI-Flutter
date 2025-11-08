@@ -460,6 +460,7 @@ Fine del file: ${file.name}
             ? content.substring(0, maxTextLength) + '\n\n[... contenuto PDF troncato ...]'
             : content;
 
+        debugPrint('✅ Returning StructuredDropboxContent for PDF - type: pdf, bytesLength: ${bytes.length}, title: ${file.name}');
         return StructuredDropboxContent(
           type: 'pdf',
           text: textForClaude,
@@ -470,6 +471,7 @@ Fine del file: ${file.name}
       } catch (e) {
         debugPrint('Error opening PDF for metadata: $e');
 
+        debugPrint('⚠️ Dropbox PDF metadata extraction failed, but returning bytes anyway - bytesLength: ${bytes.length}');
         return StructuredDropboxContent(
           type: 'pdf',
           text: """
