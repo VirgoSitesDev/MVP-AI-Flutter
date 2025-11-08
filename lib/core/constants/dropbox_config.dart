@@ -34,12 +34,12 @@ class DropboxConfig {
   static String get redirectUri {
     if (kIsWeb) {
       if (isDevelopment) {
-        return 'http://localhost:5000';
+        return 'http://localhost:5000/dropbox_callback.html';
       } else {
         // Production URL - matches your Netlify deployment
-        return 'https://virgoai.netlify.app';
+        return 'https://virgoai.netlify.app/dropbox_callback.html';
       }
     }
-    return 'http://localhost:5000';
+    return 'http://localhost:5000/dropbox_callback.html';
   }
 }

@@ -1189,14 +1189,24 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     }
 
     Widget _buildDropboxPdfView(StructuredDropboxContent content) {
-      return FutureBuilder<PdfDocument>(
-        future: PdfDocument.openData(Uint8List.fromList(content.pdfBytes!)),
+      final pdfBytes = content.pdfBytes;
+      if (pdfBytes == null || pdfBytes.isEmpty) {
+        return const Center(
+          child: Text(
+            'Dati PDF non disponibili',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
+        );
+      }
+
+      return FutureBuilder<PdfDocument?>(
+        future: PdfDocument.openData(Uint8List.fromList(pdfBytes)),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError || !snapshot.hasData) {
+          if (snapshot.hasError || !snapshot.hasData || snapshot.data == null) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -3569,7 +3579,10 @@ class _PdfViewerInlineState extends State<_PdfViewerInline> {
   }
 
   Future<void> _loadPage(int pageNumber) async {
-    if (_document == null) return;
+    if (_document == null) {
+      debugPrint('⚠️ Cannot load page: document is null');
+      return;
+    }
 
     try {
       setState(() {
@@ -3577,7 +3590,15 @@ class _PdfViewerInlineState extends State<_PdfViewerInline> {
         _error = null;
       });
 
-      final page = await _document!.getPage(pageNumber);
+      final doc = _document;
+      if (doc == null) {
+        throw Exception('Documento PDF non disponibile');
+      }
+
+      final page = await doc.getPage(pageNumber);
+      if (page == null) {
+        throw Exception('Impossibile caricare la pagina $pageNumber');
+      }
 
       if (page.width <= 0 || page.height <= 0) {
         await page.close();
@@ -3597,7 +3618,8 @@ class _PdfViewerInlineState extends State<_PdfViewerInline> {
       }
 
       // Verify the image has valid byte data
-      if (pageImage.bytes.isEmpty) {
+      final bytes = pageImage.bytes;
+      if (bytes == null || bytes.isEmpty) {
         throw Exception('Impossibile renderizzare la pagina del PDF - dati immagine vuoti');
       }
 
@@ -3813,31 +3835,48 @@ class _PdfViewerInlineState extends State<_PdfViewerInline> {
               ),
             ],
           ),
-          child: Image.memory(
-            _currentPageImage!.bytes,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                padding: const EdgeInsets.all(24),
-                child: const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: Colors.red,
+          child: Builder(
+            builder: (context) {
+              final pageImage = _currentPageImage;
+              if (pageImage == null || pageImage.bytes == null) {
+                return const Center(
+                  child: Text(
+                    'Errore nel caricamento dell\'immagine',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
                     ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Impossibile visualizzare la pagina',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
+                  ),
+                );
+              }
+
+              return Image.memory(
+                pageImage.bytes,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    padding: const EdgeInsets.all(24),
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: Colors.red,
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Impossibile visualizzare la pagina',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               );
             },
           ),

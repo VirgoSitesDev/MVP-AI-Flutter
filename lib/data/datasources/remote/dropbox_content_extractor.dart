@@ -432,6 +432,10 @@ Fine del file: ${file.name}
         debugPrint('📖 Opening PDF document with pdfx...');
         final document = await PdfDocument.openData(Uint8List.fromList(bytes));
 
+        if (document == null) {
+          throw Exception('Impossibile aprire il documento PDF - document is null');
+        }
+
         debugPrint('✅ PDF document opened successfully');
         final int pageCount = document.pagesCount;
         debugPrint('📄 PDF has $pageCount pages');
