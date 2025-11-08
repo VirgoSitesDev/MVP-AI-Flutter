@@ -3576,7 +3576,12 @@ class _PdfViewerInlineState extends State<_PdfViewerInline> {
         throw Exception('Impossibile aprire il documento PDF');
       }
 
-      final pageCount = document.pagesCount;
+      final int? pageCountNullable = document.pagesCount;
+      final int pageCount = pageCountNullable ?? 0;
+
+      if (pageCount == 0) {
+        throw Exception('PDF non contiene pagine valide');
+      }
 
       if (mounted) {
         setState(() {

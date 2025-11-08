@@ -671,8 +671,14 @@ Fine del file: ${file.name}
         }
 
         debugPrint('✅ PDF document opened successfully');
-        final int pageCount = document.pagesCount;
+        final int? pageCountNullable = document.pagesCount;
+        final int pageCount = pageCountNullable ?? 0;
         debugPrint('📄 PDF has $pageCount pages');
+
+        if (pageCount == 0) {
+          debugPrint('⚠️ Warning: PDF has 0 pages, might be an issue');
+        }
+
         await document.close();
 
         final StringBuffer buffer = StringBuffer();
