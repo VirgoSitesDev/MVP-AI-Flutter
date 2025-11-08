@@ -195,9 +195,12 @@ class SupabaseService {
         'content': m.content,
       }).toList();
 
-      // Detect if user is asking for a document/file creation
+      // Detect if user is asking for a document/file creation or modification
       final isDocumentRequest = RegExp(
-        r'\b(crea|scrivi|genera|dammi|fammi|fai|voglio)\b.{0,30}\b(documento|file|codice|script|testo|csv|excel)',
+        r'\b(crea|scrivi|genera|dammi|fammi|fai|voglio|modifica|modificare|riscrivi|riscrivere|aggiorna|aggiornare|cambia|cambiare|correggi|correggere|create|write|make|give|modify|update|change|fix|rewrite|edit)\b.{0,50}\b(documento|documenti|file|codice|script|testo|sezione|paragrafo|csv|excel|document|code|section)',
+        caseSensitive: false,
+      ).hasMatch(message) || RegExp(
+        r'\b(il|del|questo|quel|al)\s+(documento|file|codice|testo)',
         caseSensitive: false,
       ).hasMatch(message);
 
@@ -216,13 +219,20 @@ class SupabaseService {
         'content': userMessage,
       });
 
-      const systemPrompt = '''IMPORTANT: When the user asks you to create ANY document, file, or content, you MUST use this EXACT format:
+      const systemPrompt = '''CRITICAL: When the user asks you to create, modify, update, or rewrite ANY document, file, or content, you MUST use this EXACT format:
 
 ```language filename.extension
-[file content here]
+[complete file content here]
 ```
 
 The filename MUST be on the same line as the language tag, separated by a space.
+
+IMPORTANT RULES:
+1. Use this format for ALL document requests (create, modify, update, rewrite, fix, change)
+2. When modifying a document, return the COMPLETE updated version in this format
+3. When modifying a section, return the ENTIRE document with the section modified
+4. ALWAYS include the filename with extension
+5. ALWAYS put the complete content between the code block markers
 
 Examples for CODE:
 ```python fibonacci.py
