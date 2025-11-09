@@ -24,6 +24,7 @@ import '../widgets/dropbox_dialog.dart';
 import '../widgets/gmail_dialog.dart';
 import '../widgets/email_preview_widget.dart';
 import '../widgets/document_artifact_card.dart';
+import '../widgets/pdf_viewer_native.dart';
 import '../providers/artifact_provider.dart';
 import '../../domain/entities/document_artifact.dart';
 
@@ -1207,9 +1208,18 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         );
       }
 
-      debugPrint('✅ Opening Dropbox PDF document with ${pdfBytes.length} bytes');
+      debugPrint('✅ Using BROWSER NATIVE PDF VIEWER for Dropbox PDF with ${pdfBytes.length} bytes');
+      // Use browser's native PDF viewer for Dropbox PDFs too!
+      return PdfViewerNative(
+        pdfBytes: Uint8List.fromList(pdfBytes),
+        title: content.title,
+      );
+    }
+
+    Widget _buildDropboxTextView_OLD(StructuredDropboxContent content) {
+      // This is the old implementation - keeping for reference but not used
       return FutureBuilder<PdfDocument?>(
-        future: PdfDocument.openData(Uint8List.fromList(pdfBytes)),
+        future: PdfDocument.openData(Uint8List.fromList(content.pdfBytes!)),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -1683,8 +1693,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         ));
       }
 
-      debugPrint('✅ Creating _PdfViewerInline widget with ${content.pdfBytes!.length} bytes');
-      return _PdfViewerInline(
+      debugPrint('✅ Using BROWSER NATIVE PDF VIEWER for ${content.pdfBytes!.length} bytes');
+      // Use browser's native PDF viewer - it's much more reliable!
+      return PdfViewerNative(
         pdfBytes: Uint8List.fromList(content.pdfBytes!),
         title: content.title,
       );
@@ -3406,6 +3417,12 @@ Widget _buildConnectorsSection() {
   }
 
   Widget _buildArtifactPreview(DocumentArtifact artifact) {
+    // If it's a table artifact with structured data, show as table
+    if (artifact.isTable && artifact.headers != null && artifact.tableData != null) {
+      return _buildArtifactTableView(artifact);
+    }
+
+    // Otherwise show as text
     return Container(
       color: Colors.white,
       child: SingleChildScrollView(
@@ -3423,7 +3440,108 @@ Widget _buildConnectorsSection() {
     );
   }
 
+  Widget _buildArtifactTableView(DocumentArtifact artifact) {
+    final headers = artifact.headers!;
+    final data = artifact.tableData!;
+
+    // Limit rows displayed for performance
+    final displayData = data.take(100).toList();
+    final hasMore = data.length > 100;
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Table info
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.table_chart, size: 16, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text(
+                  '${headers.length} columns × ${data.length} rows',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                if (hasMore) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '(showing first 100)',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textTertiary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Table with horizontal scroll
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SingleChildScrollView(
+                child: DataTable(
+                  headingRowColor: WidgetStateProperty.all(
+                    AppColors.primary.withOpacity(0.1),
+                  ),
+                  border: TableBorder.all(
+                    color: AppColors.outline,
+                    width: 1,
+                  ),
+                  columns: headers.map((header) {
+                    return DataColumn(
+                      label: Text(
+                        header,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  rows: displayData.map((row) {
+                    return DataRow(
+                      cells: row.map((cell) {
+                        return DataCell(
+                          Text(
+                            cell,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   IconData _getArtifactIcon(DocumentArtifact artifact) {
+    if (artifact.isTable) {
+      return Icons.table_chart;
+    }
+
     switch (artifact.type) {
       case 'code':
         return Icons.code;
@@ -3440,6 +3558,10 @@ Widget _buildConnectorsSection() {
   }
 
   Color _getArtifactColor(DocumentArtifact artifact) {
+    if (artifact.isTable) {
+      return const Color(0xFF4CAF50); // Green for tables/Excel
+    }
+
     switch (artifact.type) {
       case 'code':
         return const Color(0xFF4CAF50);

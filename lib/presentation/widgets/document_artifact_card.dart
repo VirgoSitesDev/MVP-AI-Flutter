@@ -2,8 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
+import 'dart:typed_data';
 import '../../domain/entities/document_artifact.dart';
 import '../../core/theme/colors.dart';
+import '../../utils/excel_generator.dart';
 
 // Conditional import for web downloads
 import 'stub_download.dart' if (dart.library.html) 'dart:html' as html;
@@ -257,12 +259,46 @@ class DocumentArtifactCard extends StatelessWidget {
 
   void _downloadForWeb() {
     if (kIsWeb) {
-      // Create a blob from the content
-      final bytes = utf8.encode(artifact.content);
-      final blob = html.Blob([bytes]);
+      Uint8List bytes;
+      String mimeType = 'text/plain';
+
+      // For table artifacts (CSV/Excel), generate Excel file
+      if (artifact.isTable && artifact.headers != null && artifact.tableData != null) {
+        debugPrint('📊 Generating Excel file for table artifact: ${artifact.title}');
+
+        final excelBytes = ExcelGenerator.generateExcel(
+          headers: artifact.headers!,
+          data: artifact.tableData!,
+          sheetName: artifact.title.replaceAll(RegExp(r'[^\w\s-]'), ''),
+        );
+
+        if (excelBytes != null) {
+          bytes = excelBytes;
+          mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        } else {
+          // Fallback to CSV if Excel generation fails
+          debugPrint('⚠️ Excel generation failed, falling back to CSV');
+          bytes = utf8.encode(artifact.content);
+          mimeType = 'text/csv';
+        }
+      } else {
+        // For non-table artifacts, download as text
+        bytes = utf8.encode(artifact.content);
+
+        // Set appropriate MIME type based on file extension
+        if (artifact.fileName.endsWith('.json')) {
+          mimeType = 'application/json';
+        } else if (artifact.fileName.endsWith('.html')) {
+          mimeType = 'text/html';
+        } else if (artifact.fileName.endsWith('.csv')) {
+          mimeType = 'text/csv';
+        }
+      }
+
+      // Create blob and trigger download
+      final blob = html.Blob([bytes], mimeType);
       final url = html.Url.createObjectUrlFromBlob(blob);
 
-      // Create a temporary anchor element and trigger download
       final anchor = html.document.createElement('a') as html.AnchorElement
         ..href = url
         ..style.display = 'none'

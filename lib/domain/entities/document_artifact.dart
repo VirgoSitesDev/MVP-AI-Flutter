@@ -2,9 +2,13 @@ class DocumentArtifact {
   final String id;
   final String title;
   final String content;
-  final String type; // 'text', 'code', 'markdown', 'html', 'json', etc.
+  final String type; // 'text', 'code', 'markdown', 'html', 'json', 'table', etc.
   final String? language; // For code artifacts
   final DateTime createdAt;
+
+  // Table-specific data (for CSV/Excel artifacts)
+  final List<String>? headers;
+  final List<List<String>>? tableData;
 
   DocumentArtifact({
     required this.id,
@@ -13,9 +17,18 @@ class DocumentArtifact {
     required this.type,
     this.language,
     DateTime? createdAt,
+    this.headers,
+    this.tableData,
   }) : createdAt = createdAt ?? DateTime.now();
 
+  bool get isTable => type == 'table' || language == 'csv' || language == 'excel';
+
   String get fileExtension {
+    // Check if it's a table/CSV/Excel type
+    if (isTable) {
+      return 'xlsx'; // Always export tables as Excel
+    }
+
     switch (type) {
       case 'code':
         return _getCodeExtension(language ?? '');
@@ -66,6 +79,11 @@ class DocumentArtifact {
       case 'yaml':
       case 'yml':
         return 'yaml';
+      case 'csv':
+        return 'csv';
+      case 'excel':
+      case 'xlsx':
+        return 'xlsx';
       default:
         return 'txt';
     }
@@ -79,6 +97,8 @@ class DocumentArtifact {
       'type': type,
       'language': language,
       'createdAt': createdAt.toIso8601String(),
+      'headers': headers,
+      'tableData': tableData,
     };
   }
 
@@ -92,6 +112,14 @@ class DocumentArtifact {
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : null,
+      headers: json['headers'] != null
+          ? List<String>.from(json['headers'] as List)
+          : null,
+      tableData: json['tableData'] != null
+          ? (json['tableData'] as List)
+              .map((row) => List<String>.from(row as List))
+              .toList()
+          : null,
     );
   }
 
@@ -102,6 +130,8 @@ class DocumentArtifact {
     String? type,
     String? language,
     DateTime? createdAt,
+    List<String>? headers,
+    List<List<String>>? tableData,
   }) {
     return DocumentArtifact(
       id: id ?? this.id,
@@ -110,6 +140,8 @@ class DocumentArtifact {
       type: type ?? this.type,
       language: language ?? this.language,
       createdAt: createdAt ?? this.createdAt,
+      headers: headers ?? this.headers,
+      tableData: tableData ?? this.tableData,
     );
   }
 }

@@ -41,13 +41,30 @@ class ArtifactParser {
       }
 
       print('[ArtifactParser] Creating artifact: $filename');
-      artifacts.add(DocumentArtifact(
-        id: uuid.v4(),
-        title: filename,
-        content: codeContent.trim(),
-        type: 'code',
-        language: language,
-      ));
+
+      // Check if it's a CSV file - parse it into table structure
+      if (language.toLowerCase() == 'csv' || filename.toLowerCase().endsWith('.csv')) {
+        print('[ArtifactParser] Detected CSV - parsing into table structure');
+        final tableResult = _parseCSV(codeContent.trim());
+
+        artifacts.add(DocumentArtifact(
+          id: uuid.v4(),
+          title: filename,
+          content: codeContent.trim(),
+          type: 'table',
+          language: 'csv',
+          headers: tableResult['headers'] as List<String>?,
+          tableData: tableResult['data'] as List<List<String>>?,
+        ));
+      } else {
+        artifacts.add(DocumentArtifact(
+          id: uuid.v4(),
+          title: filename,
+          content: codeContent.trim(),
+          type: 'code',
+          language: language,
+        ));
+      }
     }
 
     print('[ArtifactParser] Total artifacts created: ${artifacts.length}');
@@ -75,5 +92,69 @@ class ArtifactParser {
     }
 
     return display.trim();
+  }
+
+  /// Parses CSV content into headers and table data
+  static Map<String, dynamic> _parseCSV(String csvContent) {
+    try {
+      final lines = csvContent.split('\n').where((line) => line.trim().isNotEmpty).toList();
+
+      if (lines.isEmpty) {
+        return {'headers': null, 'data': null};
+      }
+
+      // First line is headers
+      final headers = _parseCSVLine(lines[0]);
+
+      // Remaining lines are data
+      final data = <List<String>>[];
+      for (int i = 1; i < lines.length; i++) {
+        final row = _parseCSVLine(lines[i]);
+        if (row.isNotEmpty) {
+          data.add(row);
+        }
+      }
+
+      print('[ArtifactParser] Parsed CSV: ${headers.length} columns, ${data.length} rows');
+
+      return {
+        'headers': headers,
+        'data': data,
+      };
+    } catch (e) {
+      print('[ArtifactParser] Error parsing CSV: $e');
+      return {'headers': null, 'data': null};
+    }
+  }
+
+  /// Parses a single CSV line, handling quotes
+  static List<String> _parseCSVLine(String line) {
+    final List<String> result = [];
+    final StringBuffer currentField = StringBuffer();
+    bool inQuotes = false;
+
+    for (int i = 0; i < line.length; i++) {
+      final char = line[i];
+
+      if (char == '"') {
+        // Handle escaped quotes
+        if (inQuotes && i + 1 < line.length && line[i + 1] == '"') {
+          currentField.write('"');
+          i++; // Skip next quote
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char == ',' && !inQuotes) {
+        result.add(currentField.toString().trim());
+        currentField.clear();
+      } else {
+        currentField.write(char);
+      }
+    }
+
+    // Add the last field
+    result.add(currentField.toString().trim());
+
+    return result;
   }
 }
